@@ -87,28 +87,28 @@ export default function AdminsPage() {
 
       {/* New admin */}
       <Modal open={open} onClose={() => setOpen(false)} title="New company admin"
-        footer={<><button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button><button className="btn-primary" onClick={create} disabled={busy || !form.companyId || !form.email || form.password.length < 8}>{busy ? "Creating…" : "Create admin"}</button></>}>
+        footer={<><button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button><button className="btn-primary" onClick={create} disabled={busy || !form.companyId || !form.email || form.password.length < 8 || (form.phone.length > 0 && form.phone.length !== 10)}>{busy ? "Creating…" : "Create admin"}</button></>}>
         <div className="space-y-4">
           <Field label="Company"><select className="select" value={form.companyId} onChange={(e) => setForm({ ...form, companyId: e.target.value })}>
             <option value="">Select a company…</option>
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select></Field>
           <Field label="Full name"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="Email"><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+          <Field label="Email" hint="lowercase only"><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value.toLowerCase().replace(/\s/g, "") })} placeholder="name@example.com" /></Field>
           <Field label="Temporary password" hint="min 8 characters"><PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" /></Field>
-          <Field label="Phone (optional)"><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label="Mobile (optional)" hint="exactly 10 digits"><input className="input" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="9876543210" /></Field>
         </div>
       </Modal>
 
       {/* Edit admin */}
       <Modal open={!!editing} onClose={() => setEditing(null)} title={`Edit admin${editing ? ` · ${editing.name}` : ""}`}
-        footer={<><button className="btn-ghost" onClick={() => setEditing(null)}>Cancel</button><button className="btn-primary" onClick={saveEdit} disabled={busy || !editForm.name || (editForm.password !== "" && editForm.password.length < 8)}>{busy ? "Saving…" : "Save"}</button></>}>
+        footer={<><button className="btn-ghost" onClick={() => setEditing(null)}>Cancel</button><button className="btn-primary" onClick={saveEdit} disabled={busy || !editForm.name || (editForm.password !== "" && editForm.password.length < 8) || (editForm.phone.length > 0 && editForm.phone.length !== 10)}>{busy ? "Saving…" : "Save"}</button></>}>
         <div className="space-y-4">
           <div className="rounded-lg border border-surface-line bg-royal-50/40 px-3 py-2 text-xs text-ink-muted">
             {editing?.email} · {editing?.companyName} <span className="text-ink-soft">(email &amp; company can’t be changed)</span>
           </div>
           <Field label="Full name"><input className="input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></Field>
-          <Field label="Phone (optional)"><input className="input" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></Field>
+          <Field label="Mobile (optional)" hint="exactly 10 digits"><input className="input" inputMode="numeric" maxLength={10} value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="9876543210" /></Field>
           <Field label="Reset password (optional)" hint="leave blank to keep current · min 8 characters"><PasswordInput value={editForm.password} onChange={(v) => setEditForm({ ...editForm, password: v })} autoComplete="new-password" placeholder="••••••••" /></Field>
           <div className="flex items-center gap-3"><Toggle checked={editForm.isActive} onChange={(v) => setEditForm({ ...editForm, isActive: v })} /><span className="text-sm text-ink-muted">Account enabled</span></div>
         </div>

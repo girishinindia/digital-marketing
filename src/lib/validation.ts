@@ -8,6 +8,20 @@ const optionalDate = z
   .nullish()
   .or(z.literal("").transform(() => null));
 
+// Valid email, restricted to lowercase letters.
+const emailLower = z
+  .string()
+  .email("Enter a valid email")
+  .max(255)
+  .refine((v) => v === v.toLowerCase(), { message: "Email must be in lowercase letters" });
+
+// Optional 10-digit numeric mobile ("" → null).
+const phone10 = z
+  .string()
+  .regex(/^\d{10}$/, "Mobile must be exactly 10 digits")
+  .nullish()
+  .or(z.literal("").transform(() => null));
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -24,25 +38,25 @@ export const companyCreateSchema = z.object({
 export const companyUpdateSchema = companyCreateSchema.partial();
 
 export const adminCreateSchema = z.object({
-  companyId: z.number().int().positive(),
+  companyId: z.coerce.number().int().positive(),
   name: z.string().min(2).max(150),
-  email: z.string().email(),
+  email: emailLower,
   password: z.string().min(8).max(72),
-  phone: z.string().max(40).optional().nullable(),
+  phone: phone10,
 });
 
 export const userCreateSchema = z.object({
   name: z.string().min(2).max(150),
-  email: z.string().email(),
+  email: emailLower,
   password: z.string().min(8).max(72),
-  phone: z.string().max(40).optional().nullable(),
+  phone: phone10,
   isActive: z.boolean().optional(),
   activeFrom: optionalDate,
   activeTo: optionalDate,
 });
 export const userUpdateSchema = z.object({
   name: z.string().min(2).max(150).optional(),
-  phone: z.string().max(40).optional().nullable(),
+  phone: phone10,
   password: z.string().min(8).max(72).optional(),
   isActive: z.boolean().optional(),
   activeFrom: optionalDate,
@@ -86,30 +100,31 @@ export const aiGenerateSchema = z.object({
   tone: z.string().max(40).optional(),
   provider: z.enum(["openai", "anthropic", "gemini"]).optional(),
   savePost: z.boolean().optional(),
-  contentCategoryId: z.number().int().positive().optional(),
-  contentDetailId: z.number().int().positive().optional(),
+  contentCategoryId: z.coerce.number().int().positive().optional(),
+  contentDetailId: z.coerce.number().int().positive().optional(),
 });
 
 // ── Company content library ──────────────────────────────────
 export const contentCategorySchema = z.object({
-  companyId: z.number().int().positive().optional(), // super admin targets a company; admin uses own
+  // BIGINT ids arrive from the DB as strings — coerce so they validate.
+  companyId: z.coerce.number().int().positive().optional(), // super admin targets a company; admin uses own
   name: z.string().min(2).max(120),
   slug: slug,
   description: z.string().max(300).optional().nullable(),
-  sortOrder: z.number().int().optional(),
+  sortOrder: z.coerce.number().int().optional(),
   isActive: z.boolean().optional(),
 });
 export const contentCategoryUpdateSchema = contentCategorySchema.partial();
 
 export const contentDetailSchema = z.object({
-  companyId: z.number().int().positive().optional(),
-  categoryId: z.number().int().positive(),
+  companyId: z.coerce.number().int().positive().optional(),
+  categoryId: z.coerce.number().int().positive(),
   title: z.string().min(2).max(200),
   slug: slugLong,
   description: z.string().max(4000).optional().nullable(),
-  suggestedContentTypeId: z.number().int().positive().optional().nullable(),
+  suggestedContentTypeId: z.coerce.number().int().positive().optional().nullable(),
   defaultPrompt: z.string().max(4000).optional().nullable(),
-  sortOrder: z.number().int().optional(),
+  sortOrder: z.coerce.number().int().optional(),
   isActive: z.boolean().optional(),
 });
 export const contentDetailUpdateSchema = contentDetailSchema.partial();

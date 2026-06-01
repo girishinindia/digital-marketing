@@ -87,12 +87,12 @@ export default function UsersPage() {
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit user" : "Add user"}
-        footer={<><button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button><button className="btn-primary" onClick={save} disabled={busy || !form.name || (!editing && (!form.email || form.password.length < 8))}>{busy ? "Saving…" : "Save"}</button></>}>
+        footer={<><button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button><button className="btn-primary" onClick={save} disabled={busy || !form.name || (!editing && (!form.email || form.password.length < 8)) || (form.phone.length > 0 && form.phone.length !== 10)}>{busy ? "Saving…" : "Save"}</button></>}>
         <div className="space-y-4">
           <Field label="Full name"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          {!editing && <Field label="Email"><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>}
+          {!editing && <Field label="Email" hint="lowercase only"><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value.toLowerCase().replace(/\s/g, "") })} placeholder="name@example.com" /></Field>}
           <Field label={editing ? "Reset password (optional)" : "Temporary password"} hint="min 8 characters"><PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" placeholder="••••••••" /></Field>
-          <Field label="Phone (optional)"><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label="Mobile (optional)" hint="exactly 10 digits"><input className="input" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="9876543210" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Active from" hint="leave blank = immediately"><input className="input" type="date" value={form.activeFrom} onChange={(e) => setForm({ ...form, activeFrom: e.target.value })} /></Field>
             <Field label="Active to" hint="leave blank = no expiry"><input className="input" type="date" value={form.activeTo} onChange={(e) => setForm({ ...form, activeTo: e.target.value })} /></Field>

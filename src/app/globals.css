@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --royal-50: #f0f5ff;
+  --royal-100: #e1eaff;
+  --royal-200: #c7d6fb;
+  --royal-600: #2f54eb;
+  --royal-700: #1d39c4;
+  --royal-800: #10239e;
+  --ink: #1b2559;
+  --ink-muted: #5a6794;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-surface-page text-ink antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply text-ink;
+  }
+  ::selection {
+    background: var(--royal-200);
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-royal-600 text-white hover:bg-royal-700;
+  }
+  .btn-secondary {
+    @apply btn border border-surface-line bg-white text-royal-700 hover:bg-royal-50;
+  }
+  .btn-ghost {
+    @apply btn text-ink-muted hover:bg-royal-50 hover:text-royal-700;
+  }
+  .btn-danger {
+    @apply btn border border-rose-200 bg-white text-rose-600 hover:bg-rose-50;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  /* Inputs */
+  .input,
+  .select,
+  .textarea {
+    @apply w-full rounded-lg border border-surface-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-soft focus:border-royal-400 focus:outline-none focus:ring-2 focus:ring-royal-200;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-ink-muted;
+  }
+
+  /* Surfaces */
+  .card {
+    @apply rounded-xl2 border border-surface-line bg-white shadow-card;
+  }
+  .card-pad {
+    @apply card p-5;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-royal {
+    @apply badge bg-royal-50 text-royal-700;
+  }
+  .badge-green {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
+  .badge-amber {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+  .badge-gray {
+    @apply badge bg-slate-100 text-slate-600;
+  }
+  .badge-rose {
+    @apply badge bg-rose-50 text-rose-600;
+  }
+
+  /* Tables */
+  .th {
+    @apply px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-ink-soft;
+  }
+  .td {
+    @apply px-4 py-3 text-sm text-ink;
+  }
+}

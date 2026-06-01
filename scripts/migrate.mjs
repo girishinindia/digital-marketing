@@ -14,8 +14,19 @@ if (!url) {
   process.exit(1);
 }
 
+// Strip libpq SSL hints so our explicit ssl option (TLS without chain verification) wins.
+const cleanUrl = (() => {
+  try {
+    const u = new URL(url);
+    ["sslmode", "uselibpqcompat", "sslrootcert", "ssl"].forEach((p) => u.searchParams.delete(p));
+    return u.toString();
+  } catch {
+    return url;
+  }
+})();
+
 const files = readdirSync(dir).filter((f) => /^\d+.*\.sql$/.test(f)).sort();
-const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+const client = new pg.Client({ connectionString: cleanUrl, ssl: { rejectUnauthorized: false } });
 
 const run = async () => {
   await client.connect();

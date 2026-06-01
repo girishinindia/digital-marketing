@@ -11,56 +11,63 @@ export const redis: Redis | null =
 
 if (globalForRedis._redis === undefined) globalForRedis._redis = redis;
 
+// Run a Redis op but never let a Redis failure crash the request.
+async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  if (!redis) return fallback;
+  try {
+    return await fn();
+  } catch (e) {
+    console.error("[redis] operation failed (continuing):", (e as Error).message);
+    return fallback;
+  }
+}
+
 // ── session allowlist (refresh-token rotation / revocation) ──
 const sKey = (jti: string) => `session:${jti}`;
 
 export async function rememberSession(jti: string, userId: number, ttlSeconds: number) {
-  if (!redis) return;
-  await redis.set(sKey(jti), userId, { ex: ttlSeconds });
+  await safe(() => redis!.set(sKey(jti), userId, { ex: ttlSeconds }), null);
 }
 export async function sessionExists(jti: string): Promise<boolean> {
-  if (!redis) return true; // fail-open when Redis isn't configured (dev)
-  return (await redis.get(sKey(jti))) !== null;
+  // fail-open: if Redis is unavailable, don't lock users out
+  return safe(async () => (await redis!.get(sKey(jti))) !== null, true);
 }
 export async function forgetSession(jti: string) {
-  if (!redis) return;
-  await redis.del(sKey(jti));
+  await safe(() => redis!.del(sKey(jti)), null);
 }
 
 // ── generic cache ────────────────────────────────────────────
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  if (!redis) return null;
-  return (await redis.get<T>(key)) ?? null;
+  return safe(async () => (await redis!.get<T>(key)) ?? null, null);
 }
 export async function cacheSet(key: string, value: unknown, ttl = env.redis.cacheTtl) {
-  if (!redis) return;
-  await redis.set(key, value, { ex: ttl });
+  await safe(() => redis!.set(key, value, { ex: ttl }), null);
 }
 export async function cacheDel(key: string) {
-  if (!redis) return;
-  await redis.del(key);
+  await safe(() => redis!.del(key), null);
 }
 
 // ── OTP ──────────────────────────────────────────────────────
 export async function setOtp(identifier: string, code: string) {
-  if (!redis) return;
-  await redis.set(`otp:${identifier}`, code, { ex: env.redis.otpTtl });
+  await safe(() => redis!.set(`otp:${identifier}`, code, { ex: env.redis.otpTtl }), null);
 }
 export async function verifyOtp(identifier: string, code: string): Promise<boolean> {
-  if (!redis) return false;
-  const stored = await redis.get<string>(`otp:${identifier}`);
-  if (stored && String(stored) === code) {
-    await redis.del(`otp:${identifier}`);
-    return true;
-  }
-  return false;
+  return safe(async () => {
+    const stored = await redis!.get<string>(`otp:${identifier}`);
+    if (stored && String(stored) === code) {
+      await redis!.del(`otp:${identifier}`);
+      return true;
+    }
+    return false;
+  }, false);
 }
 
-// ── fixed-window rate limit ──────────────────────────────────
+// ── fixed-window rate limit (fail-open) ──────────────────────
 export async function rateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
-  if (!redis) return true; // allow when Redis unavailable
-  const k = `rl:${key}`;
-  const count = await redis.incr(k);
-  if (count === 1) await redis.expire(k, windowSeconds);
-  return count <= limit;
+  return safe(async () => {
+    const k = `rl:${key}`;
+    const count = await redis!.incr(k);
+    if (count === 1) await redis!.expire(k, windowSeconds);
+    return count <= limit;
+  }, true);
 }

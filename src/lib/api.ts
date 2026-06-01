@@ -33,7 +33,9 @@ export function handle<T extends unknown[]>(
         );
       }
       console.error("[api] unhandled error:", e);
-      return fail("Internal server error", 500);
+      const msg = e instanceof Error ? e.message : "Internal server error";
+      // Surface the real reason while developing; stay generic in production.
+      return fail(process.env.NODE_ENV === "production" ? "Internal server error" : msg, 500);
     }
   };
 }

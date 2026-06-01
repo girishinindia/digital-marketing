@@ -4,10 +4,24 @@ import { env } from "./env";
 // Reuse a single pool across hot reloads in dev.
 const globalForPg = globalThis as unknown as { _pgPool?: Pool };
 
+// Remove libpq SSL hints from the URL so our explicit `ssl` option below is
+// authoritative. Supabase presents a cert chain Node doesn't trust by default,
+// so `sslmode=require` (now an alias for verify-full) would throw
+// SELF_SIGNED_CERT_IN_CHAIN. We still connect over TLS — just without chain verification.
+function cleanConnectionString(raw: string): string {
+  try {
+    const u = new URL(raw);
+    ["sslmode", "uselibpqcompat", "sslrootcert", "ssl"].forEach((p) => u.searchParams.delete(p));
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export const pool: Pool =
   globalForPg._pgPool ??
   new Pool({
-    connectionString: env.db.url,
+    connectionString: cleanConnectionString(env.db.url),
     ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30_000,

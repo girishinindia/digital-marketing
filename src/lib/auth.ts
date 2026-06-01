@@ -48,10 +48,11 @@ export async function createSession(user: AuthUser, meta?: { ip?: string; userAg
   const refresh = await signRefresh({ sub: String(user.id), jti });
 
   await rememberSession(jti, user.id, REFRESH_SECONDS);
+  const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
   await query(
     `INSERT INTO seo.refresh_tokens (user_id, jti, user_agent, ip, expires_at)
-     VALUES ($1,$2,$3,$4, now() + ($5 || ' seconds')::interval)`,
-    [user.id, jti, meta?.userAgent ?? null, meta?.ip ?? null, REFRESH_SECONDS]
+     VALUES ($1,$2,$3,$4,$5)`,
+    [user.id, jti, meta?.userAgent ?? null, meta?.ip ?? null, expiresAt]
   );
 
   store.set(ACCESS, access, cookieOpts(ACCESS_SECONDS));

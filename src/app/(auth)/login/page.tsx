@@ -40,7 +40,7 @@ function LoginForm() {
           {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
           <label className="block">
             <span className="label">Email</span>
-            <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+            <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value.toLowerCase().replace(/\s/g, ""))} placeholder="you@company.com" />
           </label>
           <label className="block">
             <span className="label">Password</span>

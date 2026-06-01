@@ -4,6 +4,7 @@ import { api } from "@/lib/client";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader, Spinner, Empty, Field, Toggle } from "@/components/ui/primitives";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 type User = {
   id: number; name: string; email: string; phone: string | null;
@@ -90,7 +91,7 @@ export default function UsersPage() {
         <div className="space-y-4">
           <Field label="Full name"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           {!editing && <Field label="Email"><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>}
-          <Field label={editing ? "Reset password (optional)" : "Temporary password"} hint="min 8 characters"><input className="input" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
+          <Field label={editing ? "Reset password (optional)" : "Temporary password"} hint="min 8 characters"><PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" placeholder="••••••••" /></Field>
           <Field label="Phone (optional)"><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Active from" hint="leave blank = immediately"><input className="input" type="date" value={form.activeFrom} onChange={(e) => setForm({ ...form, activeFrom: e.target.value })} /></Field>

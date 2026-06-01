@@ -2,6 +2,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 function LoginForm() {
   const router = useRouter();
@@ -43,7 +44,7 @@ function LoginForm() {
           </label>
           <label className="block">
             <span className="label">Password</span>
-            <input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <PasswordInput value={password} onChange={setPassword} autoComplete="current-password" required placeholder="••••••••" />
           </label>
           <button type="submit" className="btn-primary w-full" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}

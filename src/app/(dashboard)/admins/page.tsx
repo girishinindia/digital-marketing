@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
-import { PageHeader, Spinner, Empty, Field } from "@/components/ui/primitives";
+import { PageHeader, Spinner, Empty, Field, Toggle } from "@/components/ui/primitives";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 type Admin = { id: number; name: string; email: string; phone: string | null; isActive: boolean; companyId: number; companyName: string; lastLoginAt: string | null };
 type Company = { id: number; name: string };
@@ -15,6 +16,9 @@ export default function AdminsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ companyId: "", name: "", email: "", password: "", phone: "" });
   const [busy, setBusy] = useState(false);
+
+  const [editing, setEditing] = useState<Admin | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", password: "", isActive: true });
 
   const load = () => api.get<Admin[]>("/api/admins").then(setRows).catch((e) => toast.error(e.message));
   useEffect(() => {
@@ -33,6 +37,25 @@ export default function AdminsPage() {
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   }
+
+  function openEdit(a: Admin) {
+    setEditing(a);
+    setEditForm({ name: a.name, phone: a.phone || "", password: "", isActive: a.isActive });
+  }
+  async function saveEdit() {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      const payload: Record<string, unknown> = { name: editForm.name, phone: editForm.phone || null, isActive: editForm.isActive };
+      if (editForm.password) payload.password = editForm.password;
+      await api.patch(`/api/admins/${editing.id}`, payload);
+      toast.success("Admin updated");
+      setEditing(null);
+      load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
   async function toggle(a: Admin) {
     try { await api.patch(`/api/admins/${a.id}`, { isActive: !a.isActive }); load(); } catch (e) { toast.error((e as Error).message); }
   }
@@ -54,7 +77,7 @@ export default function AdminsPage() {
                   <td className="td"><div className="font-medium text-ink">{a.name}</div><div className="text-xs text-ink-muted">{a.email}</div></td>
                   <td className="td">{a.companyName || <span className="text-ink-soft">—</span>}</td>
                   <td className="td"><button onClick={() => toggle(a)} className={a.isActive ? "badge-green" : "badge-gray"}>{a.isActive ? "active" : "inactive"}</button></td>
-                  <td className="td text-right"><button className="btn-danger btn-sm" onClick={() => remove(a)}>Remove</button></td>
+                  <td className="td"><div className="flex justify-end gap-2"><button className="btn-secondary btn-sm" onClick={() => openEdit(a)}>Edit</button><button className="btn-danger btn-sm" onClick={() => remove(a)}>Remove</button></div></td>
                 </tr>
               ))}
             </tbody>
@@ -62,6 +85,7 @@ export default function AdminsPage() {
         </div>
       )}
 
+      {/* New admin */}
       <Modal open={open} onClose={() => setOpen(false)} title="New company admin"
         footer={<><button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button><button className="btn-primary" onClick={create} disabled={busy || !form.companyId || !form.email || form.password.length < 8}>{busy ? "Creating…" : "Create admin"}</button></>}>
         <div className="space-y-4">
@@ -71,8 +95,22 @@ export default function AdminsPage() {
           </select></Field>
           <Field label="Full name"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Email"><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-          <Field label="Temporary password" hint="min 8 characters"><input className="input" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
+          <Field label="Temporary password" hint="min 8 characters"><PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" /></Field>
           <Field label="Phone (optional)"><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+        </div>
+      </Modal>
+
+      {/* Edit admin */}
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={`Edit admin${editing ? ` · ${editing.name}` : ""}`}
+        footer={<><button className="btn-ghost" onClick={() => setEditing(null)}>Cancel</button><button className="btn-primary" onClick={saveEdit} disabled={busy || !editForm.name || (editForm.password !== "" && editForm.password.length < 8)}>{busy ? "Saving…" : "Save"}</button></>}>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-surface-line bg-royal-50/40 px-3 py-2 text-xs text-ink-muted">
+            {editing?.email} · {editing?.companyName} <span className="text-ink-soft">(email &amp; company can’t be changed)</span>
+          </div>
+          <Field label="Full name"><input className="input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></Field>
+          <Field label="Phone (optional)"><input className="input" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></Field>
+          <Field label="Reset password (optional)" hint="leave blank to keep current · min 8 characters"><PasswordInput value={editForm.password} onChange={(v) => setEditForm({ ...editForm, password: v })} autoComplete="new-password" placeholder="••••••••" /></Field>
+          <div className="flex items-center gap-3"><Toggle checked={editForm.isActive} onChange={(v) => setEditForm({ ...editForm, isActive: v })} /><span className="text-sm text-ink-muted">Account enabled</span></div>
         </div>
       </Modal>
     </div>

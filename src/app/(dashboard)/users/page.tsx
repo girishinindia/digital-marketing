@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader, Spinner, Empty, Field, Toggle } from "@/components/ui/primitives";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import type { AuthUser } from "@/types";
 
 type User = {
   id: number; name: string; email: string; phone: string | null;
@@ -18,6 +19,9 @@ const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : "—")
 
 export default function UsersPage() {
   const toast = useToast();
+  const [me, setMe] = useState<AuthUser | null>(null);
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [rows, setRows] = useState<User[] | null>(null);
   const [catalog, setCatalog] = useState<PostType[]>([]);
 
@@ -27,11 +31,26 @@ export default function UsersPage() {
   const [busy, setBusy] = useState(false);
   const [grantUser, setGrantUser] = useState<User | null>(null);
 
-  const load = () => api.get<User[]>("/api/users").then(setRows).catch((e) => toast.error(e.message));
+  const isSuper = me?.roleSlug === "super_admin";
+  const scopeQS = isSuper && companyId ? `?companyId=${companyId}` : "";
+
+  const load = () => {
+    if (isSuper && !companyId) return;
+    api.get<User[]>(`/api/users${scopeQS}`).then(setRows).catch((e) => toast.error(e.message));
+  };
   useEffect(() => {
-    load();
+    api.get<{ user: AuthUser }>("/api/auth/me").then(({ user }) => {
+      setMe(user);
+      if (user.roleSlug === "super_admin") {
+        api.get<{ id: number; name: string }[]>("/api/companies").then((cs) => {
+          setCompanies(cs.map((c) => ({ id: c.id, name: c.name })));
+          if (cs[0]) setCompanyId(cs[0].id);
+        }).catch(() => {});
+      }
+    }).catch((e) => toast.error(e.message));
     api.get<PostType[]>("/api/post-types").then(setCatalog).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line
+  useEffect(() => { if (me) { setRows(null); load(); } }, [me, companyId]); // eslint-disable-line
 
   function openNew() {
     setEditing(null);
@@ -51,7 +70,7 @@ export default function UsersPage() {
       if (editing) {
         await api.patch(`/api/users/${editing.id}`, { ...base, ...(form.password ? { password: form.password } : {}) });
       } else {
-        await api.post("/api/users", { ...base, email: form.email, password: form.password });
+        await api.post("/api/users", { ...base, email: form.email, password: form.password, ...(isSuper && companyId ? { companyId } : {}) });
       }
       toast.success(editing ? "User updated" : "User created");
       setOpen(false);
@@ -63,7 +82,15 @@ export default function UsersPage() {
 
   return (
     <div>
-      <PageHeader title="Team" subtitle="People in your company who create content" action={<button className="btn-primary" onClick={openNew}>+ Add user</button>} />
+      <PageHeader title="Team" subtitle={isSuper ? "Manage any company's users" : "People in your company who create content"} action={<button className="btn-primary" onClick={openNew} disabled={isSuper && !companyId}>+ Add user</button>} />
+      {isSuper && (
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-sm text-ink-muted">Company</span>
+          <select className="select max-w-xs" value={companyId ?? ""} onChange={(e) => setCompanyId(Number(e.target.value))}>
+            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
       {!rows ? <Spinner /> : rows.length === 0 ? <Empty label="No users yet. Add your first team member." /> : (
         <div className="card overflow-hidden">
           <table className="w-full">

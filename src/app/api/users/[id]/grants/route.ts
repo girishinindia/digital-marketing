@@ -3,25 +3,27 @@ import { query, queryOne, tx } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { grantSchema } from "@/lib/validation";
+import type { AuthUser } from "@/types";
 
 export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
-async function assertOwned(userId: string, companyId: number) {
+// Company admin → own company; super admin → any company.
+async function assertManageable(userId: string, actor: AuthUser) {
+  const isSuper = actor.roleSlug === "super_admin";
   const row = await queryOne<{ id: number }>(
-    `SELECT id FROM seo.users WHERE id = $1 AND company_id = $2
-       AND role_id = (SELECT id FROM seo.roles WHERE slug='user')`,
-    [userId, companyId]
+    `SELECT id FROM seo.users WHERE id = $1 AND role_id = (SELECT id FROM seo.roles WHERE slug='user')
+       ${isSuper ? "" : "AND company_id = $2"}`,
+    isSuper ? [userId] : [userId, actor.companyId]
   );
-  if (!row) throw new ApiError("User not found in your company", 404);
+  if (!row) throw new ApiError("User not found", 404);
 }
 
 // Current grants — used to pre-fill the editor.
 export const GET = handle(async (_req: Request, ctx: Ctx) => {
   const actor = await requirePermission("grants.manage");
-  if (!actor.companyId) throw new ApiError("Admin is not attached to a company", 400);
   const { id } = await ctx.params;
-  await assertOwned(id, actor.companyId);
+  await assertManageable(id, actor);
 
   const pts = await query<{ postTypeId: number }>(
     `SELECT post_type_id AS "postTypeId" FROM seo.user_post_types WHERE user_id = $1 AND is_active`,
@@ -45,9 +47,8 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
 // Replace the full grant set for a user.
 export const POST = handle(async (req: Request, ctx: Ctx) => {
   const actor = await requirePermission("grants.manage");
-  if (!actor.companyId) throw new ApiError("Admin is not attached to a company", 400);
   const { id } = await ctx.params;
-  await assertOwned(id, actor.companyId);
+  await assertManageable(id, actor);
   const input = grantSchema.parse(await req.json());
   const userId = Number(id);
 

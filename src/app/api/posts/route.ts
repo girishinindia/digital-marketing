@@ -1,15 +1,17 @@
 import { handle, ok, created, getClientIp, ApiError } from "@/lib/api";
 import { query, queryOne } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireCompanyId } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
 export const GET = handle(async (req: Request) => {
   const user = await requirePermission("posts.create");
-  const status = new URL(req.url).searchParams.get("status");
-  const scope = user.roleSlug === "user" ? "p.user_id = $1" : "p.company_id = $1";
-  const scopeVal = user.roleSlug === "user" ? user.id : user.companyId;
+  const sp = new URL(req.url).searchParams;
+  const status = sp.get("status");
+  const isUser = user.roleSlug === "user";
+  const scope = isUser ? "p.user_id = $1" : "p.company_id = $1";
+  const scopeVal = isUser ? user.id : requireCompanyId(user, sp.get("companyId") ? Number(sp.get("companyId")) : null);
   const params: unknown[] = [scopeVal];
   let statusSql = "";
   if (status) {
@@ -39,12 +41,12 @@ export const GET = handle(async (req: Request) => {
 
 export const POST = handle(async (req: Request) => {
   const user = await requirePermission("posts.create");
-  if (!user.companyId) throw new ApiError("Only company users can create posts", 400);
   const b = (await req.json()) as {
     platformId: number; postTypeId: number; contentTypeId?: number; title?: string; body?: string; prompt?: string;
-    contentCategoryId?: number; contentDetailId?: number;
+    contentCategoryId?: number; contentDetailId?: number; companyId?: number;
   };
   if (!b.platformId || !b.postTypeId) throw new ApiError("platformId and postTypeId are required", 400);
+  const companyId = requireCompanyId(user, b.companyId ?? null);
 
   if (user.roleSlug === "user") {
     const grant = await queryOne(`SELECT id FROM seo.user_post_types WHERE user_id=$1 AND post_type_id=$2 AND is_active`, [user.id, b.postTypeId]);
@@ -56,9 +58,9 @@ export const POST = handle(async (req: Request) => {
                             content_category_id, content_detail_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft',$9,$10)
      RETURNING id, title, body, status, created_at AS "createdAt"`,
-    [user.companyId, user.id, b.platformId, b.postTypeId, b.contentTypeId ?? null, b.title ?? null, b.body ?? null, b.prompt ?? null,
+    [companyId, user.id, b.platformId, b.postTypeId, b.contentTypeId ?? null, b.title ?? null, b.body ?? null, b.prompt ?? null,
      b.contentCategoryId ?? null, b.contentDetailId ?? null]
   );
-  await writeAudit({ actorUserId: user.id, companyId: user.companyId, action: "post.create", entity: "post", entityId: rows[0].id, ip: getClientIp(req) });
+  await writeAudit({ actorUserId: user.id, companyId, action: "post.create", entity: "post", entityId: rows[0].id, ip: getClientIp(req) });
   return created(rows[0]);
 });

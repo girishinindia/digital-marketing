@@ -38,9 +38,13 @@
 
 > The migrations seed a demo company (**GrowUpMore**), one super admin, one company admin, four users, and the full platform/content/post‑type catalog. The test data sheet (`01_Test_Data.md`) lists everything plus the extra records you will create while testing.
 
-**Migrations are idempotent** — re‑running 001–006 is safe (no errors, no duplicates). If you ever hit an `already exists` error (e.g., `42P07 relation "posts" already exists`) from an older run, either just re‑run 001–006, or for a clean slate run `migrations/reset.sql` once (drops only the `seo` schema) and then run 001–006 again. See `migrations/README.md` → Troubleshooting.
+> There are now **8 migrations** — `001`–`006` (core app) plus `007`–`008` (per‑company content library). Run all of them in order.
 
-**Reset between full test passes (optional):** to start the data from scratch, run `migrations/reset.sql` then 001–006. This restores the seeded accounts in `01_Test_Data.md` and removes anything created during testing.
+**Migrations are idempotent** — re‑running 001–008 is safe (no errors, no duplicates). If you ever hit an `already exists` error (e.g., `42P07 relation "posts" already exists`) from an older run, either just re‑run 001–008, or for a clean slate run `migrations/reset.sql` once (drops only the `seo` schema) and then run 001–008 again. See `migrations/README.md` → Troubleshooting.
+
+**Reset between full test passes (optional):** to start the data from scratch, run `migrations/reset.sql` then 001–008. This restores the seeded accounts in `01_Test_Data.md` and removes anything created during testing.
+
+> **Restart after code changes:** route‑protection **middleware** registers only at server startup, so after pulling code changes restart `npm run dev` before testing access control (docs 02 & 09).
 
 ---
 
@@ -86,6 +90,7 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 | 06 | `06_End_to_End_Scenario.md` | Full cross‑role run + negative paths |
 | 07 | `07_Regression_Smoke_Checklist.md` | One‑page quick re‑test |
 | 08 | `08_Content_Library_Flow.md` | Per‑company content categories & ideas, Studio idea‑picker |
+| 09 | `09_SuperAdmin_Access_And_Validations.md` | Super Admin 100% access + email/mobile/password validations |
 
 ---
 
@@ -98,6 +103,7 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 - [ ] 06 — End‑to‑end scenario passed
 - [ ] 07 — Regression smoke passed
 - [ ] 08 — Content Library passed
+- [ ] 09 — Super Admin access & validations passed
 - [ ] All blocking defects resolved / re‑tested
 
 **Tester:** ____________________  **Build / commit:** ____________  **Date:** ____________

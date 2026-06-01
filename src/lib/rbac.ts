@@ -17,6 +17,7 @@ const ROLE_PERMISSIONS: Record<RoleSlug, Permission[]> = {
 };
 
 export function can(role: RoleSlug, perm: Permission): boolean {
+  if (role === "super_admin") return true; // super admin has every permission
   return ROLE_PERMISSIONS[role]?.includes(perm) ?? false;
 }
 
@@ -35,6 +36,7 @@ export const ROUTE_ACCESS: Record<string, RoleSlug[]> = {
 };
 
 export function canAccessPath(role: RoleSlug, pathname: string): boolean {
+  if (role === "super_admin") return true; // super admin can open every page
   const seg = "/" + (pathname.split("/")[1] || "");
   const allowed = ROUTE_ACCESS[seg];
   if (!allowed) return true; // unlisted paths are not gated here

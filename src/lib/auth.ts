@@ -122,6 +122,17 @@ export async function requirePermission(perm: Permission): Promise<AuthUser> {
   return user;
 }
 
+// Resolve which company an action targets. Super admin must specify one
+// (they have no company of their own); company-scoped roles use their own.
+export function requireCompanyId(user: AuthUser, provided?: number | null): number {
+  if (user.roleSlug === "super_admin") {
+    if (!provided) throw new ApiError("Select a company first", 400);
+    return provided;
+  }
+  if (!user.companyId) throw new ApiError("No company context", 400);
+  return user.companyId;
+}
+
 // Load a fresh AuthUser straight from the DB (role + company joined).
 export async function loadUserById(id: number): Promise<AuthUser | null> {
   return queryOne<AuthUser>(

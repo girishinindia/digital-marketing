@@ -105,23 +105,25 @@ Result key: ✅ Pass · ❌ Fail · ⏭️ Skipped
 
 Type these URLs directly in the address bar **while signed in** as the stated role.
 
+> ⚠️ Route protection is enforced by middleware, which **registers only at server startup**. If you changed code, restart `npm run dev` before running this test.
+
 | Signed in as | Visit URL | Expected |
 |--------------|-----------|----------|
 | User (Priya) | `/companies` | Redirected to `/dashboard` |
 | User (Priya) | `/platforms` | Redirected to `/dashboard` |
 | User (Priya) | `/users` | Redirected to `/dashboard` |
+| User (Priya) | `/content-library` | Redirected to `/dashboard` |
 | User (Priya) | `/studio`, `/posts`, `/dashboard` | Allowed |
 | Company Admin (Rahul) | `/companies` | Redirected to `/dashboard` |
+| Company Admin (Rahul) | `/admins` | Redirected to `/dashboard` |
 | Company Admin (Rahul) | `/post-types` | Redirected to `/dashboard` |
-| Company Admin (Rahul) | `/users`, `/studio`, `/posts` | Allowed |
-| Super Admin (Girish) | `/users` | Redirected to `/dashboard` (no company context) |
-| Super Admin (Girish) | `/studio` | Redirected to `/dashboard` |
-| Super Admin (Girish) | `/companies`, `/admins`, `/platforms`, `/content-types`, `/post-types` | Allowed |
+| Company Admin (Rahul) | `/users`, `/content-library`, `/studio`, `/posts` | Allowed |
+| **Super Admin (Girish)** | **any page** — `/companies`, `/admins`, `/platforms`, `/content-types`, `/post-types`, `/users`, `/content-library`, `/studio`, `/posts` | **Allowed — full access** (company‑scoped pages show a company selector) |
 | Signed out | `/dashboard` | Redirected to `/login?next=/dashboard` |
 
 - [ ] User blocked from admin/super pages
 - [ ] Company Admin blocked from super pages
-- [ ] Super Admin blocked from company‑scoped pages
+- [ ] **Super Admin can reach every page** (full access — not redirected anywhere)
 - [ ] Signed‑out user redirected to login with `next`
 
 **Result:** ____

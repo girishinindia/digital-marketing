@@ -4,25 +4,29 @@ import { requirePermission } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { writeAudit } from "@/lib/audit";
 import { userUpdateSchema } from "@/lib/validation";
+import type { AuthUser } from "@/types";
 
 export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
-// Confirm the target user belongs to the admin's company.
-async function assertOwned(userId: string, companyId: number) {
-  const row = await queryOne<{ id: number }>(
-    `SELECT id FROM seo.users WHERE id = $1 AND company_id = $2
-       AND role_id = (SELECT id FROM seo.roles WHERE slug='user')`,
-    [userId, companyId]
+// Company admin may only manage their own company's users; super admin may manage any.
+// Returns the target user's company id (for auditing).
+async function assertManageable(userId: string, actor: AuthUser): Promise<number | null> {
+  const isSuper = actor.roleSlug === "super_admin";
+  const row = await queryOne<{ companyId: number | null }>(
+    `SELECT company_id AS "companyId" FROM seo.users
+     WHERE id = $1 AND role_id = (SELECT id FROM seo.roles WHERE slug='user')
+       ${isSuper ? "" : "AND company_id = $2"}`,
+    isSuper ? [userId] : [userId, actor.companyId]
   );
-  if (!row) throw new ApiError("User not found in your company", 404);
+  if (!row) throw new ApiError("User not found", 404);
+  return row.companyId;
 }
 
 export const PATCH = handle(async (req: Request, ctx: Ctx) => {
   const actor = await requirePermission("users.manage");
-  if (!actor.companyId) throw new ApiError("Admin is not attached to a company", 400);
   const { id } = await ctx.params;
-  await assertOwned(id, actor.companyId);
+  const companyId = await assertManageable(id, actor);
 
   const input = userUpdateSchema.parse(await req.json());
   const cols: Record<string, unknown> = {
@@ -42,16 +46,15 @@ export const PATCH = handle(async (req: Request, ctx: Ctx) => {
                active_from AS "activeFrom", active_to AS "activeTo"`,
     values
   );
-  await writeAudit({ actorUserId: actor.id, companyId: actor.companyId, action: "user.update", entity: "user", entityId: id, ip: getClientIp(req) });
+  await writeAudit({ actorUserId: actor.id, companyId, action: "user.update", entity: "user", entityId: id, ip: getClientIp(req) });
   return ok(row);
 });
 
 export const DELETE = handle(async (req: Request, ctx: Ctx) => {
   const actor = await requirePermission("users.manage");
-  if (!actor.companyId) throw new ApiError("Admin is not attached to a company", 400);
   const { id } = await ctx.params;
-  await assertOwned(id, actor.companyId);
+  const companyId = await assertManageable(id, actor);
   await query(`DELETE FROM seo.users WHERE id = $1`, [id]);
-  await writeAudit({ actorUserId: actor.id, companyId: actor.companyId, action: "user.delete", entity: "user", entityId: id, ip: getClientIp(req) });
+  await writeAudit({ actorUserId: actor.id, companyId, action: "user.delete", entity: "user", entityId: id, ip: getClientIp(req) });
   return noContent();
 });

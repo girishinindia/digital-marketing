@@ -46,6 +46,7 @@ export const adminCreateSchema = z.object({
 });
 
 export const userCreateSchema = z.object({
+  companyId: z.coerce.number().int().positive().optional(), // super admin targets a company
   name: z.string().min(2).max(150),
   email: emailLower,
   password: z.string().min(8).max(72),
@@ -100,6 +101,7 @@ export const aiGenerateSchema = z.object({
   tone: z.string().max(40).optional(),
   provider: z.enum(["openai", "anthropic", "gemini"]).optional(),
   savePost: z.boolean().optional(),
+  companyId: z.coerce.number().int().positive().optional(), // super admin targets a company when saving
   contentCategoryId: z.coerce.number().int().positive().optional(),
   contentDetailId: z.coerce.number().int().positive().optional(),
 });

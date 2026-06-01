@@ -4,6 +4,7 @@ import { api } from "@/lib/client";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader, Spinner, Empty, Field, StatusBadge } from "@/components/ui/primitives";
+import type { AuthUser } from "@/types";
 
 type Post = {
   id: number; title: string | null; body: string | null; hashtags: string | null; mediaUrl: string | null;
@@ -16,14 +17,36 @@ const STATUSES = ["draft", "generated", "approved", "scheduled", "published", "a
 
 export default function PostsPage() {
   const toast = useToast();
+  const [me, setMe] = useState<AuthUser | null>(null);
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [rows, setRows] = useState<Post[] | null>(null);
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState({ title: "", body: "", hashtags: "", mediaUrl: "", status: "draft", scheduledAt: "" });
   const [busy, setBusy] = useState(false);
 
-  const load = () => api.get<Post[]>(`/api/posts${filter ? `?status=${filter}` : ""}`).then(setRows).catch((e) => toast.error(e.message));
-  useEffect(() => { setRows(null); load(); }, [filter]);
+  const isSuper = me?.roleSlug === "super_admin";
+  const load = () => {
+    if (isSuper && !companyId) return;
+    const p = new URLSearchParams();
+    if (filter) p.set("status", filter);
+    if (isSuper && companyId) p.set("companyId", String(companyId));
+    const qs = p.toString();
+    api.get<Post[]>(`/api/posts${qs ? `?${qs}` : ""}`).then(setRows).catch((e) => toast.error(e.message));
+  };
+  useEffect(() => {
+    api.get<{ user: AuthUser }>("/api/auth/me").then(({ user }) => {
+      setMe(user);
+      if (user.roleSlug === "super_admin") {
+        api.get<{ id: number; name: string }[]>("/api/companies").then((cs) => {
+          setCompanies(cs.map((c) => ({ id: c.id, name: c.name })));
+          if (cs[0]) setCompanyId(cs[0].id);
+        }).catch(() => {});
+      }
+    }).catch((e) => toast.error(e.message));
+  }, []); // eslint-disable-line
+  useEffect(() => { if (me) { setRows(null); load(); } }, [me, filter, companyId]); // eslint-disable-line
 
   function openEdit(p: Post) {
     setEditing(p);
@@ -45,8 +68,17 @@ export default function PostsPage() {
   return (
     <div>
       <PageHeader title="Posts" subtitle="Drafts, scheduled and published content"
-        action={<select className="select max-w-[180px]" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>} />
-      {!rows ? <Spinner /> : rows.length === 0 ? <Empty label="No posts yet. Generate one in the AI Studio." /> : (
+        action={
+          <div className="flex items-center gap-2">
+            {isSuper && (
+              <select className="select max-w-[180px]" value={companyId ?? ""} onChange={(e) => setCompanyId(Number(e.target.value))}>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            <select className="select max-w-[180px]" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+          </div>
+        } />
+      {!rows ? <Spinner /> : rows.length === 0 ? <Empty label="No posts here yet." /> : (
         <div className="space-y-3">
           {rows.map((p) => (
             <div key={p.id} className="card-pad">

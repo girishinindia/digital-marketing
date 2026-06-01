@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { useToast } from "@/components/ui/toast";
 import { PageHeader, Spinner, Field } from "@/components/ui/primitives";
+import type { AuthUser } from "@/types";
 
 type Options = {
   platforms: { id: number; name: string }[];
@@ -15,6 +16,9 @@ type Idea = { id: number; categoryId: number; title: string; defaultPrompt: stri
 
 export default function StudioPage() {
   const toast = useToast();
+  const [me, setMe] = useState<AuthUser | null>(null);
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [opts, setOpts] = useState<Options | null>(null);
   const [platformId, setPlatformId] = useState<number | null>(null);
   const [postTypeId, setPostTypeId] = useState<number | null>(null);
@@ -36,14 +40,31 @@ export default function StudioPage() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const isSuper = me?.roleSlug === "super_admin";
+  const libQS = isSuper && companyId ? `?companyId=${companyId}` : "";
+
   useEffect(() => {
+    api.get<{ user: AuthUser }>("/api/auth/me").then(({ user }) => {
+      setMe(user);
+      if (user.roleSlug === "super_admin") {
+        api.get<{ id: number; name: string }[]>("/api/companies").then((cs) => {
+          setCompanies(cs.map((c) => ({ id: c.id, name: c.name })));
+          if (cs[0]) setCompanyId(cs[0].id);
+        }).catch(() => {});
+      }
+    }).catch((e) => toast.error(e.message));
     api.get<Options>("/api/ai/options").then((o) => {
       setOpts(o);
       if (o.platforms[0]) setPlatformId(o.platforms[0].id);
     }).catch((e) => toast.error(e.message));
-    api.get<Category[]>("/api/content-categories").then((c) => setCategories(c.filter((x) => x.isActive))).catch(() => {});
-    api.get<Idea[]>("/api/content-details").then((d) => setIdeas(d.filter((x) => x.isActive))).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line
+
+  // Content library is per-company — (re)load when the chosen company changes.
+  useEffect(() => {
+    if (!me || (isSuper && !companyId)) return;
+    api.get<Category[]>(`/api/content-categories${libQS}`).then((c) => setCategories(c.filter((x) => x.isActive))).catch(() => {});
+    api.get<Idea[]>(`/api/content-details${libQS}`).then((d) => setIdeas(d.filter((x) => x.isActive))).catch(() => {});
+  }, [me, companyId]); // eslint-disable-line
 
   // Picking a content idea prefills the prompt and (if compatible) the format.
   function applyIdea(id: number) {
@@ -91,6 +112,7 @@ export default function StudioPage() {
       const post = await api.post<{ id: number }>("/api/posts", {
         platformId, postTypeId, contentTypeId: contentTypeId ?? undefined, body,
         contentCategoryId: ideaCat || undefined, contentDetailId: ideaId || undefined,
+        ...(isSuper && companyId ? { companyId } : {}),
       });
       await api.patch(`/api/posts/${post.id}`, { hashtags, mediaUrl: mediaUrl || null, status: "generated" });
       toast.success("Saved to Posts as a draft");
@@ -110,7 +132,12 @@ export default function StudioPage() {
 
   return (
     <div>
-      <PageHeader title="AI Studio" subtitle="Generate ready-to-post copy with AI" />
+      <PageHeader title="AI Studio" subtitle="Generate ready-to-post copy with AI"
+        action={isSuper ? (
+          <select className="select max-w-xs" value={companyId ?? ""} onChange={(e) => setCompanyId(Number(e.target.value))}>
+            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        ) : undefined} />
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Composer */}
         <div className="card-pad space-y-4">

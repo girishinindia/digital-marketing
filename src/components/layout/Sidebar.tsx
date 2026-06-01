@@ -20,7 +20,8 @@ const NAV: NavItem[] = [
 
 export function Sidebar({ role }: { role: RoleSlug }) {
   const pathname = usePathname();
-  const items = NAV.filter((n) => n.roles.includes(role));
+  // Super admin sees every menu item; other roles only what they're allowed.
+  const items = role === "super_admin" ? NAV : NAV.filter((n) => n.roles.includes(role));
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-surface-line bg-white px-3 py-5 md:flex">
       <div className="mb-6 flex items-center gap-2 px-2">

@@ -1,6 +1,6 @@
 import { handle, ok, fail, getClientIp, ApiError } from "@/lib/api";
 import { query, queryOne } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireCompanyId } from "@/lib/auth";
 import { rateLimit } from "@/lib/redis";
 import { writeAudit } from "@/lib/audit";
 import { aiGenerateSchema } from "@/lib/validation";
@@ -76,14 +76,14 @@ export const POST = handle(async (req: Request) => {
 
   let post = null;
   if (input.savePost) {
-    if (!user.companyId) throw new ApiError("Only company users can save posts", 400);
+    const companyId = requireCompanyId(user, input.companyId ?? null);
     const rows = await query(
       `INSERT INTO seo.posts (company_id, user_id, platform_id, post_type_id, content_type_id,
                               prompt, body, hashtags, status, ai_provider, ai_model,
                               content_category_id, content_detail_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'generated',$9,$10,$11,$12)
        RETURNING id, title, body, hashtags, status, ai_provider AS "aiProvider", ai_model AS "aiModel", created_at AS "createdAt"`,
-      [user.companyId, user.id, meta.platformId, input.postTypeId, input.contentTypeId ?? null,
+      [companyId, user.id, meta.platformId, input.postTypeId, input.contentTypeId ?? null,
        input.prompt, result.body, result.hashtags, result.provider, result.model,
        input.contentCategoryId ?? null, input.contentDetailId ?? null]
     );

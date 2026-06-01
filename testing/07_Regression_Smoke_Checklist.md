@@ -18,10 +18,16 @@ Mark each ✅/❌. If anything fails, run the matching full doc (02–06).
 
 ## Super Admin (doc 03)
 - [ ] Create + edit a company; toggle active; delete a throwaway
-- [ ] Create a company admin against a company; disable works
+- [ ] Create a company admin against a company; **Edit** admin (name/mobile/reset password); disable works
 - [ ] Platforms list shows 12; create/toggle/delete a test platform
 - [ ] Content Types list shows 13; create/edit/delete works
 - [ ] Post Types: switch platform; create a post type; manage content mappings (count updates)
+
+## Super Admin full access & validations (doc 09)
+- [ ] Super Admin sidebar shows **all** items; no page redirects them away
+- [ ] Team / Posts / AI Studio show a **Company** selector and operate on the chosen company
+- [ ] Content Library: create category + idea works (no "Validation failed")
+- [ ] Email auto‑lowercases (login, new admin, add user); password **eye** toggles; mobile = exactly 10 digits
 
 ## Company Admin (doc 04)
 - [ ] Create a user with **Active from / Active to** dates

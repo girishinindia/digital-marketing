@@ -80,14 +80,36 @@ Result key: ✅ Pass · ❌ Fail · ⏭️ Skipped
 
 **Result:** ____
 
-### TC‑SA‑07 — Admin validation
+### TC‑SA‑07 — Admin form validation (email, mobile, password)
 | Step | Action | Expected result |
 |------|--------|-----------------|
-| 1 | **+ New admin**, leave **Company** unselected | **Create admin** button stays disabled |
-| 2 | Enter a 5‑char password | Button stays disabled (needs ≥ 8 chars) |
+| 1 | **+ New admin**, leave **Company** unselected | **Create admin** stays disabled |
+| 2 | Enter a 5‑char password | Stays disabled (needs ≥ 8 chars) |
+| 3 | In **Email**, type `Test@GMAIL.Com` | Auto‑lowercases to `test@gmail.com` as you type |
+| 4 | Click the **eye** icon on the password field | Toggles between hidden ●●● and visible text |
+| 5 | In **Mobile**, type letters/symbols | Ignored — only digits accepted |
+| 6 | Type `12345` in Mobile | Button stays disabled until **exactly 10 digits** |
+| 7 | Type `9876543210` (and fill the rest) | 10 digits accepted; button enables |
 
-- [ ] Company is required
-- [ ] Password under 8 chars blocks submit
+- [ ] Company required · password ≥ 8 chars
+- [ ] Email auto‑lowercases
+- [ ] Password eye (show/hide) works
+- [ ] Mobile accepts digits only and requires exactly 10
+
+**Result:** ____
+
+### TC‑SA‑07b — Edit a company admin
+| Step | Action | Expected result |
+|------|--------|-----------------|
+| 1 | On any admin row, click **Edit** | Dialog opens; **email & company are read‑only** ("can't be changed") |
+| 2 | Change **Full name**, set a valid 10‑digit **Mobile** → **Save** | Toast "Admin updated"; row shows the new name |
+| 3 | Edit again → **Reset password** = `NewAdmin@123` (use the eye to verify) → **Save** | Saved |
+| 4 | (optional) Sign in as that admin with the new password (incognito) | ✅ Logs in |
+| 5 | In the edit dialog toggle **Account enabled** off → **Save** | Status shows inactive |
+
+- [ ] Edit opens with email/company locked
+- [ ] Name / mobile / password reset save
+- [ ] Enable toggle works from the edit dialog
 
 **Result:** ____
 

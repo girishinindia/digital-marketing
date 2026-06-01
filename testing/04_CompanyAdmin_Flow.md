@@ -20,6 +20,21 @@ Result key: ✅ Pass · ❌ Fail · ⏭️ Skipped
 
 **Result:** ____
 
+### TC‑CA‑01b — User form validation (email, mobile, password)
+| Step | Action | Expected result |
+|------|--------|-----------------|
+| 1 | **+ Add user** → type `Demo@GMAIL.Com` in **Email** | Auto‑lowercases to `demo@gmail.com` |
+| 2 | Click the **eye** on the password field | Toggles show/hide |
+| 3 | **Mobile**: type letters → then `12345` | Letters ignored; **Save** disabled until exactly 10 digits |
+| 4 | Mobile → `9876543210` | Accepted (10 digits) |
+| 5 | **Edit** an existing user → the same mobile/password‑eye rules apply (email is read‑only on edit) | Validations enforced |
+
+- [ ] Email auto‑lowercases (create)
+- [ ] Password eye works (add & edit)
+- [ ] Mobile is digits‑only and exactly 10 (add & edit)
+
+**Result:** ____
+
 ### TC‑CA‑02 — Add a scheduled (future) user
 | Step | Action | Expected result |
 |------|--------|-----------------|

@@ -8,6 +8,12 @@ export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
 async function assertVisible(id: string, user: { id: number; roleSlug: string; companyId: number | null }) {
+  // super admin → any post; company admin → own company; user → own posts
+  if (user.roleSlug === "super_admin") {
+    const row = await queryOne<{ id: number }>(`SELECT id FROM seo.posts WHERE id = $1`, [id]);
+    if (!row) throw new ApiError("Post not found", 404);
+    return;
+  }
   const where = user.roleSlug === "user" ? "id = $1 AND user_id = $2" : "id = $1 AND company_id = $2";
   const val = user.roleSlug === "user" ? user.id : user.companyId;
   const row = await queryOne<{ id: number }>(`SELECT id FROM seo.posts WHERE ${where}`, [id, val]);

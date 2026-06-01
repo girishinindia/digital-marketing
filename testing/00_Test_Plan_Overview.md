@@ -85,6 +85,7 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 | 05 | `05_User_Flow.md` | Granted‑type visibility, posts management (non‑AI), media |
 | 06 | `06_End_to_End_Scenario.md` | Full cross‑role run + negative paths |
 | 07 | `07_Regression_Smoke_Checklist.md` | One‑page quick re‑test |
+| 08 | `08_Content_Library_Flow.md` | Per‑company content categories & ideas, Studio idea‑picker |
 
 ---
 
@@ -96,6 +97,7 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 - [ ] 05 — User flow (non‑AI) passed
 - [ ] 06 — End‑to‑end scenario passed
 - [ ] 07 — Regression smoke passed
+- [ ] 08 — Content Library passed
 - [ ] All blocking defects resolved / re‑tested
 
 **Tester:** ____________________  **Build / commit:** ____________  **Date:** ____________

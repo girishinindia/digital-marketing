@@ -10,6 +10,8 @@ type Options = {
   contentTypesByPostType: Record<string, { id: number; name: string; slug: string }[]>;
 };
 type GenResult = { body: string; hashtags: string; provider: string; model: string };
+type Category = { id: number; name: string; isActive: boolean };
+type Idea = { id: number; categoryId: number; title: string; defaultPrompt: string | null; suggestedContentTypeId: number | null; isActive: boolean };
 
 export default function StudioPage() {
   const toast = useToast();
@@ -22,6 +24,12 @@ export default function StudioPage() {
   const [provider, setProvider] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // content library (optional starting point)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [ideaCat, setIdeaCat] = useState<number | "">("");
+  const [ideaId, setIdeaId] = useState<number | "">("");
+
   const [result, setResult] = useState<GenResult | null>(null);
   const [body, setBody] = useState("");
   const [hashtags, setHashtags] = useState("");
@@ -33,7 +41,21 @@ export default function StudioPage() {
       setOpts(o);
       if (o.platforms[0]) setPlatformId(o.platforms[0].id);
     }).catch((e) => toast.error(e.message));
+    api.get<Category[]>("/api/content-categories").then((c) => setCategories(c.filter((x) => x.isActive))).catch(() => {});
+    api.get<Idea[]>("/api/content-details").then((d) => setIdeas(d.filter((x) => x.isActive))).catch(() => {});
   }, []);
+
+  // Picking a content idea prefills the prompt and (if compatible) the format.
+  function applyIdea(id: number) {
+    const idea = ideas.find((i) => i.id === id);
+    if (!idea) return;
+    setIdeaId(id);
+    setPrompt(idea.defaultPrompt || `Create a social media post about: ${idea.title}`);
+    if (idea.suggestedContentTypeId && contentTypes.some((c) => c.id === idea.suggestedContentTypeId)) {
+      setContentTypeId(idea.suggestedContentTypeId);
+    }
+  }
+  const ideasInCat = useMemo(() => (ideaCat ? ideas.filter((i) => i.categoryId === ideaCat) : []), [ideas, ideaCat]);
 
   const postTypes = useMemo(() => (opts && platformId ? opts.postTypes.filter((p) => p.platformId === platformId) : []), [opts, platformId]);
   const contentTypes = useMemo(() => (opts && postTypeId ? opts.contentTypesByPostType[postTypeId] || [] : []), [opts, postTypeId]);
@@ -48,6 +70,7 @@ export default function StudioPage() {
       const r = await api.post<{ content: GenResult }>("/api/ai/generate", {
         platformId, postTypeId, contentTypeId: contentTypeId ?? undefined,
         prompt, tone: tone || undefined, provider: provider || undefined, savePost: false,
+        contentCategoryId: ideaCat || undefined, contentDetailId: ideaId || undefined,
       });
       setResult(r.content); setBody(r.content.body); setHashtags(r.content.hashtags); setMediaUrl("");
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -65,10 +88,13 @@ export default function StudioPage() {
     if (!platformId || !postTypeId) return;
     setSaving(true);
     try {
-      const post = await api.post<{ id: number }>("/api/posts", { platformId, postTypeId, contentTypeId: contentTypeId ?? undefined, body });
+      const post = await api.post<{ id: number }>("/api/posts", {
+        platformId, postTypeId, contentTypeId: contentTypeId ?? undefined, body,
+        contentCategoryId: ideaCat || undefined, contentDetailId: ideaId || undefined,
+      });
       await api.patch(`/api/posts/${post.id}`, { hashtags, mediaUrl: mediaUrl || null, status: "generated" });
       toast.success("Saved to Posts as a draft");
-      setResult(null); setBody(""); setHashtags(""); setMediaUrl(""); setPrompt("");
+      setResult(null); setBody(""); setHashtags(""); setMediaUrl(""); setPrompt(""); setIdeaCat(""); setIdeaId("");
     } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   }
 
@@ -96,6 +122,21 @@ export default function StudioPage() {
             <Field label="Content type"><select className="select" value={contentTypeId ?? ""} onChange={(e) => setContentTypeId(Number(e.target.value))}>{contentTypes.length ? contentTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">—</option>}</select></Field>
             <Field label="AI model"><select className="select" value={provider} onChange={(e) => setProvider(e.target.value)}><option value="">Auto</option><option value="openai">OpenAI</option><option value="anthropic">Claude</option><option value="gemini">Gemini</option></select></Field>
           </div>
+          {categories.length > 0 && (
+            <div className="rounded-lg border border-royal-100 bg-royal-50/50 p-3">
+              <p className="mb-2 text-xs font-medium text-royal-700">Start from a content idea (optional)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <select className="select" value={ideaCat} onChange={(e) => { setIdeaCat(e.target.value ? Number(e.target.value) : ""); setIdeaId(""); }}>
+                  <option value="">Category…</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select className="select" value={ideaId} onChange={(e) => e.target.value && applyIdea(Number(e.target.value))} disabled={!ideaCat}>
+                  <option value="">{ideaCat ? "Pick an idea…" : "Choose category first"}</option>
+                  {ideasInCat.map((i) => <option key={i.id} value={i.id}>{i.title}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
           <Field label="Tone (optional)"><input className="input" placeholder="e.g. witty, professional, bold" value={tone} onChange={(e) => setTone(e.target.value)} /></Field>
           <Field label="Prompt"><textarea className="textarea min-h-[120px]" placeholder="Describe the post you want…" value={prompt} onChange={(e) => setPrompt(e.target.value)} /></Field>
           <button className="btn-primary w-full" onClick={generate} disabled={busy}>{busy ? "Generating…" : "✨ Generate"}</button>

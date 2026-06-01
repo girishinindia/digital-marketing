@@ -7,11 +7,12 @@ export type Permission =
   | "users.manage"        // company-scoped users
   | "grants.manage"       // assign post/content types to users
   | "posts.create"        // AI studio
+  | "content.manage"      // company content library (categories + ideas)
   | "audit.view";
 
 const ROLE_PERMISSIONS: Record<RoleSlug, Permission[]> = {
-  super_admin: ["companies.manage", "admins.manage", "catalog.manage", "audit.view"],
-  company_admin: ["users.manage", "grants.manage", "posts.create", "audit.view"],
+  super_admin: ["companies.manage", "admins.manage", "catalog.manage", "content.manage", "audit.view"],
+  company_admin: ["users.manage", "grants.manage", "posts.create", "content.manage", "audit.view"],
   user: ["posts.create"],
 };
 
@@ -28,6 +29,7 @@ export const ROUTE_ACCESS: Record<string, RoleSlug[]> = {
   "/content-types": ["super_admin"],
   "/post-types": ["super_admin"],
   "/users": ["company_admin"],
+  "/content-library": ["super_admin", "company_admin"],
   "/studio": ["company_admin", "user"],
   "/posts": ["company_admin", "user"],
 };

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const GET = handle(async (req: Request) => {
   const user = await requirePermission("posts.create");
   const status = new URL(req.url).searchParams.get("status");
-  const scope = user.roleSlug === "user" ? "u.user_id = $1" : "p.company_id = $1";
+  const scope = user.roleSlug === "user" ? "p.user_id = $1" : "p.company_id = $1";
   const scopeVal = user.roleSlug === "user" ? user.id : user.companyId;
   const params: unknown[] = [scopeVal];
   let statusSql = "";
@@ -19,15 +19,17 @@ export const GET = handle(async (req: Request) => {
   const rows = await query(
     `SELECT p.id, p.title, p.body, p.hashtags, p.media_url AS "mediaUrl", p.status,
             pl.name AS "platformName", pt.name AS "postTypeName", ct.name AS "contentTypeName",
+            cc.name AS "contentCategoryName", cd.title AS "contentIdeaTitle",
             p.ai_provider AS "aiProvider", p.ai_model AS "aiModel",
             p.scheduled_at AS "scheduledAt", p.published_at AS "publishedAt", p.created_at AS "createdAt",
             au.name AS "authorName"
      FROM seo.posts p
-     JOIN seo.users u ON u.id = p.user_id
      JOIN seo.users au ON au.id = p.user_id
      JOIN seo.platforms pl ON pl.id = p.platform_id
      JOIN seo.post_types pt ON pt.id = p.post_type_id
      LEFT JOIN seo.content_types ct ON ct.id = p.content_type_id
+     LEFT JOIN seo.content_categories cc ON cc.id = p.content_category_id
+     LEFT JOIN seo.content_details cd ON cd.id = p.content_detail_id
      WHERE ${scope} ${statusSql}
      ORDER BY p.created_at DESC LIMIT 200`,
     params
@@ -40,6 +42,7 @@ export const POST = handle(async (req: Request) => {
   if (!user.companyId) throw new ApiError("Only company users can create posts", 400);
   const b = (await req.json()) as {
     platformId: number; postTypeId: number; contentTypeId?: number; title?: string; body?: string; prompt?: string;
+    contentCategoryId?: number; contentDetailId?: number;
   };
   if (!b.platformId || !b.postTypeId) throw new ApiError("platformId and postTypeId are required", 400);
 
@@ -49,10 +52,12 @@ export const POST = handle(async (req: Request) => {
   }
 
   const rows = await query(
-    `INSERT INTO seo.posts (company_id, user_id, platform_id, post_type_id, content_type_id, title, body, prompt, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft')
+    `INSERT INTO seo.posts (company_id, user_id, platform_id, post_type_id, content_type_id, title, body, prompt, status,
+                            content_category_id, content_detail_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft',$9,$10)
      RETURNING id, title, body, status, created_at AS "createdAt"`,
-    [user.companyId, user.id, b.platformId, b.postTypeId, b.contentTypeId ?? null, b.title ?? null, b.body ?? null, b.prompt ?? null]
+    [user.companyId, user.id, b.platformId, b.postTypeId, b.contentTypeId ?? null, b.title ?? null, b.body ?? null, b.prompt ?? null,
+     b.contentCategoryId ?? null, b.contentDetailId ?? null]
   );
   await writeAudit({ actorUserId: user.id, companyId: user.companyId, action: "post.create", entity: "post", entityId: rows[0].id, ip: getClientIp(req) });
   return created(rows[0]);

@@ -79,11 +79,13 @@ export const POST = handle(async (req: Request) => {
     if (!user.companyId) throw new ApiError("Only company users can save posts", 400);
     const rows = await query(
       `INSERT INTO seo.posts (company_id, user_id, platform_id, post_type_id, content_type_id,
-                              prompt, body, hashtags, status, ai_provider, ai_model)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'generated',$9,$10)
+                              prompt, body, hashtags, status, ai_provider, ai_model,
+                              content_category_id, content_detail_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'generated',$9,$10,$11,$12)
        RETURNING id, title, body, hashtags, status, ai_provider AS "aiProvider", ai_model AS "aiModel", created_at AS "createdAt"`,
       [user.companyId, user.id, meta.platformId, input.postTypeId, input.contentTypeId ?? null,
-       input.prompt, result.body, result.hashtags, result.provider, result.model]
+       input.prompt, result.body, result.hashtags, result.provider, result.model,
+       input.contentCategoryId ?? null, input.contentDetailId ?? null]
     );
     post = rows[0];
   }

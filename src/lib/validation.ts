@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const slug = z.string().min(1).max(80).regex(/^[a-z0-9-]+$/, "lowercase letters, numbers and dashes only");
+const slugLong = z.string().min(1).max(160).regex(/^[a-z0-9-]+$/, "lowercase letters, numbers and dashes only");
 const optionalDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD")
@@ -85,7 +86,33 @@ export const aiGenerateSchema = z.object({
   tone: z.string().max(40).optional(),
   provider: z.enum(["openai", "anthropic", "gemini"]).optional(),
   savePost: z.boolean().optional(),
+  contentCategoryId: z.number().int().positive().optional(),
+  contentDetailId: z.number().int().positive().optional(),
 });
+
+// ── Company content library ──────────────────────────────────
+export const contentCategorySchema = z.object({
+  companyId: z.number().int().positive().optional(), // super admin targets a company; admin uses own
+  name: z.string().min(2).max(120),
+  slug: slug,
+  description: z.string().max(300).optional().nullable(),
+  sortOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+export const contentCategoryUpdateSchema = contentCategorySchema.partial();
+
+export const contentDetailSchema = z.object({
+  companyId: z.number().int().positive().optional(),
+  categoryId: z.number().int().positive(),
+  title: z.string().min(2).max(200),
+  slug: slugLong,
+  description: z.string().max(4000).optional().nullable(),
+  suggestedContentTypeId: z.number().int().positive().optional().nullable(),
+  defaultPrompt: z.string().max(4000).optional().nullable(),
+  sortOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+export const contentDetailUpdateSchema = contentDetailSchema.partial();
 
 export const postUpdateSchema = z.object({
   title: z.string().max(200).optional().nullable(),

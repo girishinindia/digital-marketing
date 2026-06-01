@@ -8,6 +8,7 @@ import { PageHeader, Spinner, Empty, Field, StatusBadge } from "@/components/ui/
 type Post = {
   id: number; title: string | null; body: string | null; hashtags: string | null; mediaUrl: string | null;
   status: string; platformName: string; postTypeName: string; contentTypeName: string | null;
+  contentCategoryName: string | null; contentIdeaTitle: string | null;
   aiProvider: string | null; scheduledAt: string | null; createdAt: string; authorName: string;
 };
 
@@ -54,7 +55,8 @@ export default function PostsPage() {
                   <div className="mb-1 flex flex-wrap items-center gap-2">
                     <StatusBadge status={p.status} />
                     <span className="badge-gray">{p.platformName}</span>
-                    <span className="text-xs text-ink-soft">{p.postTypeName}{p.contentTypeName ? ` · ${p.contentTypeName}` : ""}</span>
+                    {p.contentCategoryName && <span className="badge-royal">{p.contentCategoryName}</span>}
+                    <span className="text-xs text-ink-soft">{p.postTypeName}{p.contentTypeName ? ` · ${p.contentTypeName}` : ""}{p.contentIdeaTitle ? ` · 💡 ${p.contentIdeaTitle}` : ""}</span>
                     {p.aiProvider && <span className="text-xs text-royal-600">AI: {p.aiProvider}</span>}
                   </div>
                   {p.title && <p className="font-medium text-ink">{p.title}</p>}

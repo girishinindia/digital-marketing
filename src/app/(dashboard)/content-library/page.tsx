@@ -25,6 +25,9 @@ export default function ContentLibraryPage() {
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [details, setDetails] = useState<Detail[] | null>(null);
   const [activeCat, setActiveCat] = useState<number | "all">("all");
+  const [search, setSearch] = useState("");
+  const [formatFilter, setFormatFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
 
   const [catModal, setCatModal] = useState(false);
   const [catEdit, setCatEdit] = useState<Category | null>(null);
@@ -64,12 +67,12 @@ export default function ContentLibraryPage() {
   }, [cidQS, isSuper, companyId]); // eslint-disable-line
   const loadDetails = useCallback(() => {
     if (isSuper && !companyId) return;
-    const qs = activeCat === "all" ? cidQS() : cidQS({ categoryId: activeCat });
-    api.get<Detail[]>(`/api/content-details${qs}`).then(setDetails).catch((e) => toast.error(e.message));
-  }, [cidQS, activeCat, isSuper, companyId]); // eslint-disable-line
+    // Load the whole company library once; search/filter happen instantly client-side.
+    api.get<Detail[]>(`/api/content-details${cidQS()}`).then(setDetails).catch((e) => toast.error(e.message));
+  }, [cidQS, isSuper, companyId]); // eslint-disable-line
 
   useEffect(() => { if (me) { setCategories(null); loadCategories(); } }, [me, companyId, loadCategories]);
-  useEffect(() => { if (me) { setDetails(null); loadDetails(); } }, [me, companyId, activeCat, loadDetails]);
+  useEffect(() => { if (me) { setDetails(null); loadDetails(); } }, [me, companyId, loadDetails]);
 
   // category actions
   function openNewCat() { setCatEdit(null); setCatForm({ name: "", slug: "", description: "", isActive: true }); setCatModal(true); }
@@ -126,6 +129,21 @@ export default function ContentLibraryPage() {
 
   const totalIdeas = useMemo(() => categories?.reduce((s, c) => s + c.ideaCount, 0) ?? 0, [categories]);
 
+  // Instant client-side search + category/format/status filtering.
+  const filtered = useMemo(() => {
+    if (!details) return null;
+    const q = search.trim().toLowerCase();
+    return details.filter((d) => {
+      if (activeCat !== "all" && d.categoryId !== activeCat) return false;
+      if (formatFilter && (d.suggestedFormatName || "") !== formatFilter) return false;
+      if (statusFilter === "active" && !d.isActive) return false;
+      if (statusFilter === "inactive" && d.isActive) return false;
+      if (q && !`${d.title} ${d.description ?? ""} ${d.categoryName}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [details, activeCat, formatFilter, statusFilter, search]);
+  const hasFilters = !!(search || formatFilter || statusFilter || activeCat !== "all");
+
   return (
     <div>
       <PageHeader title="Content Library" subtitle={`Per-company content categories & ideas${categories ? ` · ${totalIdeas} ideas` : ""}`}
@@ -162,12 +180,33 @@ export default function ContentLibraryPage() {
 
         {/* Ideas pane */}
         <div>
-          {!details ? <Spinner /> : details.length === 0 ? <Empty label="No ideas here yet. Add one with “+ Idea”." /> : (
+          {/* search + filters */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[180px] flex-1">
+              <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+              <input className="input pl-9 pr-8" placeholder="Search ideas…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink" aria-label="Clear search">✕</button>}
+            </div>
+            <select className="select max-w-[160px]" value={formatFilter} onChange={(e) => setFormatFilter(e.target.value)}>
+              <option value="">All formats</option>
+              {formats.map((f) => <option key={f.id} value={f.name}>{f.name}</option>)}
+            </select>
+            <select className="select max-w-[130px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "" | "active" | "inactive")}>
+              <option value="">Any status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            {hasFilters && <button className="btn-ghost btn-sm" onClick={() => { setSearch(""); setFormatFilter(""); setStatusFilter(""); setActiveCat("all"); }}>Clear</button>}
+          </div>
+
+          {filtered && <div className="mb-2 text-xs text-ink-soft">{filtered.length} of {details?.length ?? 0} ideas{activeCat !== "all" ? ` · ${categories?.find((c) => c.id === activeCat)?.name ?? ""}` : ""}</div>}
+
+          {!filtered ? <Spinner /> : filtered.length === 0 ? <Empty label={details && details.length ? "No ideas match your search or filters." : "No ideas here yet. Add one with “+ Idea”."} /> : (
             <div className="card overflow-hidden">
               <table className="w-full">
                 <thead className="bg-royal-50/60"><tr><th className="th">Idea</th><th className="th">Category</th><th className="th">Format</th><th className="th">Status</th><th className="th text-right">Actions</th></tr></thead>
                 <tbody className="divide-y divide-surface-line">
-                  {details.map((d) => (
+                  {filtered.map((d) => (
                     <tr key={d.id}>
                       <td className="td"><div className="font-medium text-ink">{d.title}</div>{d.description && <div className="max-w-md truncate text-xs text-ink-soft">{d.description}</div>}</td>
                       <td className="td text-ink-muted">{d.categoryName}</td>

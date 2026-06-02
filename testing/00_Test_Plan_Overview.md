@@ -38,11 +38,11 @@
 
 > The migrations seed a demo company (**GrowUpMore**), one super admin, one company admin, four users, and the full platform/content/post‑type catalog. The test data sheet (`01_Test_Data.md`) lists everything plus the extra records you will create while testing.
 
-> There are now **8 migrations** — `001`–`006` (core app) plus `007`–`008` (per‑company content library). Run all of them in order.
+> There are now **11 migrations** — `001`–`006` (core app), `007`–`008` (content library), `009`–`010` (company account + weekly calendar), `011` (company entitlements). Run all of them in order.
 
-**Migrations are idempotent** — re‑running 001–008 is safe (no errors, no duplicates). If you ever hit an `already exists` error (e.g., `42P07 relation "posts" already exists`) from an older run, either just re‑run 001–008, or for a clean slate run `migrations/reset.sql` once (drops only the `seo` schema) and then run 001–008 again. See `migrations/README.md` → Troubleshooting.
+**Migrations are idempotent** — re‑running 001–011 is safe (no errors, no duplicates). If you ever hit an `already exists` error (e.g., `42P07 relation "posts" already exists`) from an older run, either just re‑run 001–011, or for a clean slate run `migrations/reset.sql` once (drops only the `seo` schema) and then run 001–011 again. See `migrations/README.md` → Troubleshooting.
 
-**Reset between full test passes (optional):** to start the data from scratch, run `migrations/reset.sql` then 001–008. This restores the seeded accounts in `01_Test_Data.md` and removes anything created during testing.
+**Reset between full test passes (optional):** to start the data from scratch, run `migrations/reset.sql` then 001–011. This restores the seeded accounts in `01_Test_Data.md` and removes anything created during testing.
 
 > **Restart after code changes:** route‑protection **middleware** registers only at server startup, so after pulling code changes restart `npm run dev` before testing access control (docs 02 & 09).
 
@@ -91,6 +91,8 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 | 07 | `07_Regression_Smoke_Checklist.md` | One‑page quick re‑test |
 | 08 | `08_Content_Library_Flow.md` | Per‑company content categories & ideas, Studio idea‑picker |
 | 09 | `09_SuperAdmin_Access_And_Validations.md` | Super Admin 100% access + email/mobile/password validations |
+| 10 | `10_Calendar_Flow.md` | Company account, per‑entity platforms, weekly content calendar |
+| 11 | `11_Entitlements_Flow.md` | 3‑tier cascade: Super‑Admin company entitlements → Admin grants |
 
 ---
 
@@ -104,6 +106,8 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 - [ ] 07 — Regression smoke passed
 - [ ] 08 — Content Library passed
 - [ ] 09 — Super Admin access & validations passed
+- [ ] 10 — Company account & weekly calendar passed
+- [ ] 11 — Company entitlements (3‑tier cascade) passed
 - [ ] All blocking defects resolved / re‑tested
 
 **Tester:** ____________________  **Build / commit:** ____________  **Date:** ____________

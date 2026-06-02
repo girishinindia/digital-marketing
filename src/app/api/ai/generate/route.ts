@@ -1,12 +1,10 @@
 import { handle, ok, fail, getClientIp, ApiError } from "@/lib/api";
-import { query, queryOne } from "@/lib/db";
+import { queryOne } from "@/lib/db";
 import { requirePermission, requireCompanyId } from "@/lib/auth";
 import { rateLimit } from "@/lib/redis";
 import { writeAudit } from "@/lib/audit";
 import { aiGenerateSchema } from "@/lib/validation";
-import { buildPrompt } from "@/lib/ai/prompt";
-import { generateContent } from "@/lib/ai";
-import { env } from "@/lib/env";
+import { runGeneration } from "@/lib/generate";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,69 +35,20 @@ export const POST = handle(async (req: Request) => {
     }
   }
 
-  const meta = await queryOne<{
-    platformSlug: string; platformName: string; postTypeName: string; platformId: number;
-  }>(
-    `SELECT pl.slug AS "platformSlug", pl.name AS "platformName", pt.name AS "postTypeName", pl.id AS "platformId"
-     FROM seo.post_types pt JOIN seo.platforms pl ON pl.id = pt.platform_id
-     WHERE pt.id = $1`,
-    [input.postTypeId]
-  );
-  if (!meta) throw new ApiError("Post type not found", 404);
-
-  let contentTypeName: string | undefined;
-  if (input.contentTypeId) {
-    const ct = await queryOne<{ name: string }>(`SELECT name FROM seo.content_types WHERE id = $1`, [input.contentTypeId]);
-    contentTypeName = ct?.name;
-  }
-
-  const { system, user: userPrompt } = buildPrompt({
-    platform: meta.platformSlug,
-    postType: meta.postTypeName,
-    contentType: contentTypeName,
-    tone: input.tone,
+  const companyId = input.savePost ? requireCompanyId(user, input.companyId ?? null) : null;
+  const { content, post } = await runGeneration({
+    companyId,
+    authorUserId: user.id,
+    postTypeId: input.postTypeId,
+    contentTypeId: input.contentTypeId ?? null,
     prompt: input.prompt,
-    appName: env.app.name,
+    tone: input.tone,
+    provider: input.provider,
+    contentCategoryId: input.contentCategoryId ?? null,
+    contentDetailId: input.contentDetailId ?? null,
+    savePost: input.savePost ?? false,
   });
 
-  let result;
-  try {
-    result = await generateContent({ systemPrompt: system, userPrompt }, input.provider);
-  } catch (e) {
-    await query(
-      `INSERT INTO seo.post_generations (user_id, provider, model, system_prompt, prompt, status, error)
-       VALUES ($1,$2,$3,$4,$5,'error',$6)`,
-      [user.id, input.provider ?? env.ai.defaultProvider, "n/a", system, userPrompt, (e as Error).message]
-    );
-    throw new ApiError(`AI generation failed: ${(e as Error).message}`, 502);
-  }
-
-  let post = null;
-  if (input.savePost) {
-    const companyId = requireCompanyId(user, input.companyId ?? null);
-    const rows = await query(
-      `INSERT INTO seo.posts (company_id, user_id, platform_id, post_type_id, content_type_id,
-                              prompt, body, hashtags, status, ai_provider, ai_model,
-                              content_category_id, content_detail_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'generated',$9,$10,$11,$12)
-       RETURNING id, title, body, hashtags, status, ai_provider AS "aiProvider", ai_model AS "aiModel", created_at AS "createdAt"`,
-      [companyId, user.id, meta.platformId, input.postTypeId, input.contentTypeId ?? null,
-       input.prompt, result.body, result.hashtags, result.provider, result.model,
-       input.contentCategoryId ?? null, input.contentDetailId ?? null]
-    );
-    post = rows[0];
-  }
-
-  await query(
-    `INSERT INTO seo.post_generations (post_id, user_id, provider, model, system_prompt, prompt, output, tokens_input, tokens_output, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'success')`,
-    [post?.id ?? null, user.id, result.provider, result.model, system, userPrompt, result.output,
-     result.tokensInput ?? null, result.tokensOutput ?? null]
-  );
-  await writeAudit({ actorUserId: user.id, companyId: user.companyId, action: "ai.generate", entity: "post_type", entityId: input.postTypeId, metadata: { provider: result.provider }, ip: getClientIp(req) });
-
-  return ok({
-    content: { body: result.body, hashtags: result.hashtags, provider: result.provider, model: result.model },
-    post,
-  });
+  await writeAudit({ actorUserId: user.id, companyId: user.companyId, action: "ai.generate", entity: "post_type", entityId: input.postTypeId, metadata: { provider: content.provider }, ip: getClientIp(req) });
+  return ok({ content, post });
 });

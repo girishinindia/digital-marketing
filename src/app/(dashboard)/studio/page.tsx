@@ -53,15 +53,15 @@ export default function StudioPage() {
         }).catch(() => {});
       }
     }).catch((e) => toast.error(e.message));
-    api.get<Options>("/api/ai/options").then((o) => {
+  }, []); // eslint-disable-line
+
+  // Options + content library are per-company — (re)load when the chosen company changes.
+  useEffect(() => {
+    if (!me || (isSuper && !companyId)) return;
+    api.get<Options>(`/api/ai/options${libQS}`).then((o) => {
       setOpts(o);
       if (o.platforms[0]) setPlatformId(o.platforms[0].id);
     }).catch((e) => toast.error(e.message));
-  }, []); // eslint-disable-line
-
-  // Content library is per-company — (re)load when the chosen company changes.
-  useEffect(() => {
-    if (!me || (isSuper && !companyId)) return;
     api.get<Category[]>(`/api/content-categories${libQS}`).then((c) => setCategories(c.filter((x) => x.isActive))).catch(() => {});
     api.get<Idea[]>(`/api/content-details${libQS}`).then((d) => setIdeas(d.filter((x) => x.isActive))).catch(() => {});
   }, [me, companyId]); // eslint-disable-line

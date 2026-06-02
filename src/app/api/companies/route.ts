@@ -27,6 +27,14 @@ export const POST = handle(async (req: Request) => {
      RETURNING id, name, slug, legal_name AS "legalName", website, is_active AS "isActive"`,
     [input.name, input.slug, input.legalName ?? null, input.website || null, input.isActive ?? null]
   );
+  // Every company gets a posting "Company account" (no login) the admin can grant + schedule.
+  await query(
+    `INSERT INTO seo.users (company_id, role_id, name, email, is_company_account, is_active)
+     SELECT $1, r.id, $2 || ' (Company)', 'company.' || $3 || '@accounts.local', TRUE, TRUE
+     FROM seo.roles r WHERE r.slug = 'user'
+     ON CONFLICT DO NOTHING`,
+    [row[0].id, input.name, input.slug]
+  );
   await writeAudit({
     actorUserId: actor.id,
     action: "company.create",

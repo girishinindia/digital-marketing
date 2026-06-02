@@ -14,6 +14,7 @@ const NAV: NavItem[] = [
   { href: "/post-types", label: "Post Types", roles: ["super_admin"], icon: "M7 4h10v16l-5-3-5 3z" },
   { href: "/users", label: "Team", roles: ["company_admin"], icon: "M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M12 10a4 4 0 100-8 4 4 0 000 8z" },
   { href: "/content-library", label: "Content Library", roles: ["super_admin", "company_admin"], icon: "M4 5a2 2 0 012-2h11v16H6a2 2 0 01-2-2zM9 3v16" },
+  { href: "/calendar", label: "Calendar", roles: ["super_admin", "company_admin"], icon: "M3 8h18M7 3v3M17 3v3M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" },
   { href: "/studio", label: "AI Studio", roles: ["company_admin", "user"], icon: "M12 3l1.9 4.8L19 9l-4 3.3L16 18l-4-2.7L8 18l1-5.7L5 9l5.1-1.2z" },
   { href: "/posts", label: "Posts", roles: ["company_admin", "user"], icon: "M4 4h16v12H8l-4 4z" },
 ];

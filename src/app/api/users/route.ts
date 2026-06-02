@@ -22,7 +22,7 @@ export const GET = handle(async (req: Request) => {
             (SELECT count(*) FROM seo.user_post_types g WHERE g.user_id = u.id AND g.is_active)::int AS "postTypeCount"
      FROM seo.users u
      JOIN seo.roles r ON r.id = u.role_id AND r.slug = 'user'
-     WHERE u.company_id = $1
+     WHERE u.company_id = $1 AND NOT u.is_company_account
      ORDER BY u.created_at DESC`,
     [companyId]
   );

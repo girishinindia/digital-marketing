@@ -18,28 +18,49 @@ function cleanConnectionString(raw: string): string {
   }
 }
 
-export const pool: Pool =
-  globalForPg._pgPool ??
-  new Pool({
+// Create the pool ONCE and attach listeners once. On hot reload we reuse the
+// cached instance so we don't leak connect/error listeners (MaxListeners warning).
+function createPool(): Pool {
+  const p = new Pool({
     connectionString: cleanConnectionString(env.db.url),
     ssl: { rejectUnauthorized: false },
     max: 10,
-    idleTimeoutMillis: 30_000,
+    idleTimeoutMillis: 10_000, // recycle idle sockets before the pooler drops them
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+    connectionTimeoutMillis: 15_000,
   });
+  // Pin search_path for every new connection.
+  p.on("connect", (client) => {
+    client.query(`SET search_path TO ${env.db.schema}, public`).catch(() => {});
+  });
+  // Don't let a background socket error crash the dev server; the pool reconnects.
+  p.on("error", (err) => console.error("[pg pool] idle client error:", (err as Error).message));
+  globalForPg._pgPool = p;
+  return p;
+}
 
-// Pin search_path to the app schema for every pooled connection.
-pool.on("connect", (client) => {
-  client.query(`SET search_path TO ${env.db.schema}, public`).catch(() => {});
-});
+export const pool: Pool = globalForPg._pgPool ?? createPool();
 
-if (!globalForPg._pgPool) globalForPg._pgPool = pool;
+// A dropped pooled socket throws a connection error; retry once with a fresh client.
+function isConnectionError(e: unknown): boolean {
+  const msg = (e as Error)?.message ?? "";
+  const code = (e as { code?: string })?.code ?? "";
+  return /terminat|ECONNRESET|ETIMEDOUT|Connection terminated|server closed/i.test(msg) ||
+    ["57P01", "ECONNRESET", "ETIMEDOUT", "EPIPE"].includes(code);
+}
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params: unknown[] = []
 ): Promise<T[]> {
-  const res = await pool.query<T>(text, params as never[]);
-  return res.rows;
+  try {
+    return (await pool.query<T>(text, params as never[])).rows;
+  } catch (e) {
+    if (!isConnectionError(e)) throw e;
+    await new Promise((r) => setTimeout(r, 250)); // brief pause, then one retry on a fresh connection
+    return (await pool.query<T>(text, params as never[])).rows;
+  }
 }
 
 export async function queryOne<T extends QueryResultRow = QueryResultRow>(

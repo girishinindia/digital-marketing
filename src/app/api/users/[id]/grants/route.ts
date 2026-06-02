@@ -8,15 +8,16 @@ import type { AuthUser } from "@/types";
 export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
-// Company admin → own company; super admin → any company.
-async function assertManageable(userId: string, actor: AuthUser) {
+// Company admin → own company; super admin → any company. Returns the user's company id.
+async function assertManageable(userId: string, actor: AuthUser): Promise<number> {
   const isSuper = actor.roleSlug === "super_admin";
-  const row = await queryOne<{ id: number }>(
-    `SELECT id FROM seo.users WHERE id = $1 AND role_id = (SELECT id FROM seo.roles WHERE slug='user')
+  const row = await queryOne<{ companyId: number }>(
+    `SELECT company_id AS "companyId" FROM seo.users WHERE id = $1 AND role_id = (SELECT id FROM seo.roles WHERE slug='user')
        ${isSuper ? "" : "AND company_id = $2"}`,
     isSuper ? [userId] : [userId, actor.companyId]
   );
   if (!row) throw new ApiError("User not found", 404);
+  return row.companyId;
 }
 
 // Current grants — used to pre-fill the editor.
@@ -48,9 +49,20 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
 export const POST = handle(async (req: Request, ctx: Ctx) => {
   const actor = await requirePermission("grants.manage");
   const { id } = await ctx.params;
-  await assertManageable(id, actor);
+  const companyId = await assertManageable(id, actor);
   const input = grantSchema.parse(await req.json());
   const userId = Number(id);
+
+  // Enforce the cascade: a user can only be granted what the company is entitled to.
+  if (input.postTypeIds.length) {
+    const entitled = await query<{ postTypeId: number }>(
+      `SELECT post_type_id AS "postTypeId" FROM seo.company_post_types WHERE company_id = $1 AND is_active`,
+      [companyId]
+    );
+    const allowed = new Set(entitled.map((e) => Number(e.postTypeId)));
+    const outside = input.postTypeIds.filter((pt) => !allowed.has(pt));
+    if (outside.length) throw new ApiError("Some post types are not in this company's entitlement", 403);
+  }
 
   await tx(async (c) => {
     // 1. Drop post types no longer granted.

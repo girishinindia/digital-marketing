@@ -8,15 +8,24 @@ export const runtime = "nodejs";
 
 export const GET = handle(async (req: Request) => {
   await requireUser();
-  const postTypeId = new URL(req.url).searchParams.get("postTypeId");
+  const sp = new URL(req.url).searchParams;
+  const postTypeId = sp.get("postTypeId");
+  const companyId = sp.get("companyId");
   if (!postTypeId) throw new ApiError("postTypeId is required", 400);
+  // When a company is given, restrict to that company's entitled content formats.
+  const params: unknown[] = [postTypeId];
+  let entSql = "";
+  if (companyId) {
+    params.push(companyId);
+    entSql = `AND m.id IN (SELECT post_type_content_type_id FROM seo.company_post_type_content_types WHERE company_id = $2 AND is_active)`;
+  }
   const rows = await query(
     `SELECT m.id, m.post_type_id AS "postTypeId", m.content_type_id AS "contentTypeId",
             ct.name AS "contentTypeName", ct.slug AS "contentTypeSlug", m.is_active AS "isActive"
      FROM seo.post_type_content_types m
      JOIN seo.content_types ct ON ct.id = m.content_type_id
-     WHERE m.post_type_id = $1 ORDER BY ct.name`,
-    [postTypeId]
+     WHERE m.post_type_id = $1 ${entSql} ORDER BY ct.name`,
+    params
   );
   return ok(rows);
 });

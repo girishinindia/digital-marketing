@@ -131,6 +131,43 @@ export const contentDetailSchema = z.object({
 });
 export const contentDetailUpdateSchema = contentDetailSchema.partial();
 
+// ── Weekly content calendar ──────────────────────────────────
+const timeOpt = z.string().regex(/^\d{2}:\d{2}$/, "use HH:MM").nullish().or(z.literal("").transform(() => null));
+
+export const calendarCreateSchema = z.object({
+  companyId: z.coerce.number().int().positive().optional(),
+  weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD"),
+  title: z.string().max(160).optional().nullable(),
+});
+
+export const slotCreateSchema = z.object({
+  calendarId: z.coerce.number().int().positive(),
+  postingUserId: z.coerce.number().int().positive(),
+  platformId: z.coerce.number().int().positive(),
+  postTypeId: z.coerce.number().int().positive(),
+  contentTypeId: z.coerce.number().int().positive().optional().nullable(),
+  contentDetailId: z.coerce.number().int().positive().optional().nullable(),
+  slotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD"),
+  plannedTime: timeOpt,
+  notes: z.string().max(2000).optional().nullable(),
+});
+
+export const slotUpdateSchema = z.object({
+  platformId: z.coerce.number().int().positive().optional(),
+  postTypeId: z.coerce.number().int().positive().optional(),
+  contentTypeId: z.coerce.number().int().positive().optional().nullable(),
+  contentDetailId: z.coerce.number().int().positive().optional().nullable(),
+  slotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  plannedTime: timeOpt,
+  notes: z.string().max(2000).optional().nullable(),
+  status: z.enum(["planned", "generated", "approved", "scheduled", "published", "skipped"]).optional(),
+});
+
+export const slotGenerateSchema = z.object({
+  provider: z.enum(["openai", "anthropic", "gemini"]).optional(),
+  prompt: z.string().max(4000).optional(),
+});
+
 export const postUpdateSchema = z.object({
   title: z.string().max(200).optional().nullable(),
   body: z.string().optional().nullable(),

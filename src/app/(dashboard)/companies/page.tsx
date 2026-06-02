@@ -4,8 +4,10 @@ import { api } from "@/lib/client";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader, Spinner, Empty, Field, Toggle } from "@/components/ui/primitives";
+import { GrantMatrix } from "@/components/GrantMatrix";
 
 type Company = { id: number; name: string; slug: string; legalName: string | null; website: string | null; isActive: boolean; userCount: number };
+type PostType = { id: number; platformId: number; platformName: string; name: string };
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -16,9 +18,11 @@ export default function CompaniesPage() {
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState({ name: "", slug: "", legalName: "", website: "", isActive: true });
   const [busy, setBusy] = useState(false);
+  const [entitleCompany, setEntitleCompany] = useState<Company | null>(null);
+  const [fullCatalog, setFullCatalog] = useState<PostType[]>([]);
 
   const load = () => api.get<Company[]>("/api/companies").then(setRows).catch((e) => toast.error(e.message));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get<PostType[]>("/api/post-types").then(setFullCatalog).catch(() => {}); }, []);
 
   function openNew() {
     setEditing(null);
@@ -68,7 +72,7 @@ export default function CompaniesPage() {
                   <td className="td"><code className="rounded bg-royal-50 px-1.5 py-0.5 text-xs text-royal-700">{c.slug}</code></td>
                   <td className="td">{c.userCount}</td>
                   <td className="td"><button onClick={() => toggle(c)} className={c.isActive ? "badge-green" : "badge-gray"}>{c.isActive ? "active" : "inactive"}</button></td>
-                  <td className="td"><div className="flex justify-end gap-2"><button className="btn-secondary btn-sm" onClick={() => openEdit(c)}>Edit</button><button className="btn-danger btn-sm" onClick={() => remove(c)}>Delete</button></div></td>
+                  <td className="td"><div className="flex justify-end gap-2"><button className="btn-secondary btn-sm" onClick={() => setEntitleCompany(c)}>Grants</button><button className="btn-secondary btn-sm" onClick={() => openEdit(c)}>Edit</button><button className="btn-danger btn-sm" onClick={() => remove(c)}>Delete</button></div></td>
                 </tr>
               ))}
             </tbody>
@@ -86,6 +90,18 @@ export default function CompaniesPage() {
           <div className="flex items-center gap-3"><Toggle checked={form.isActive} onChange={(v) => setForm({ ...form, isActive: v })} /><span className="text-sm text-ink-muted">Active</span></div>
         </div>
       </Modal>
+
+      {entitleCompany && (
+        <GrantMatrix
+          title={`Entitlement · ${entitleCompany.name}`}
+          helpText="Choose everything this company is allowed to use. Company Admins can only assign to users/the company account from within this set. Removing items here also revokes them from any user that had them."
+          catalog={fullCatalog}
+          loadInitial={() => api.get(`/api/companies/${entitleCompany.id}/entitlements`)}
+          loadContentTypes={(pt) => api.get<{ contentTypeId: number; contentTypeName: string }[]>(`/api/post-type-content-types?postTypeId=${pt}`).then((m) => m.map((x) => ({ id: x.contentTypeId, name: x.contentTypeName })))}
+          onSave={(p) => api.post(`/api/companies/${entitleCompany.id}/entitlements`, p)}
+          onClose={() => setEntitleCompany(null)}
+        />
+      )}
     </div>
   );
 }

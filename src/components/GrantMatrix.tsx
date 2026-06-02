@@ -91,6 +91,16 @@ export function GrantMatrix({
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   }
 
+  function selectAll() { setSelected(new Set(catalog.map((p) => p.id))); }
+  function clearAll() { setSelected(new Set()); }
+  function toggleGroup(pts: GrantPostType[]) {
+    const ids = pts.map((p) => p.id);
+    const allOn = ids.every((id) => selected.has(id));
+    setSelected((prev) => { const n = new Set(prev); ids.forEach((id) => (allOn ? n.delete(id) : n.add(id))); return n; });
+  }
+  const allChecked = catalog.length > 0 && selected.size === catalog.length;
+  const someChecked = selected.size > 0 && selected.size < catalog.length;
+
   return (
     <Modal open onClose={() => onClose(false)} wide title={title}
       footer={<><button className="btn-ghost" onClick={() => onClose(false)}>Cancel</button><button className="btn-primary" onClick={save} disabled={busy || !loaded}>{busy ? "Saving…" : "Save"}</button></>}>
@@ -99,9 +109,19 @@ export function GrantMatrix({
       ) : (
         <div className="max-h-[55vh] space-y-5 overflow-y-auto pr-1">
           <p className="text-sm text-ink-muted">{helpText}</p>
+          <div className="flex items-center justify-between rounded-lg border border-surface-line bg-royal-50/40 px-3 py-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+              <input type="checkbox" className="accent-royal-600" checked={allChecked} ref={(el) => { if (el) el.indeterminate = someChecked; }} onChange={(e) => (e.target.checked ? selectAll() : clearAll())} />
+              Select all
+            </label>
+            <span className="text-xs text-ink-soft">{selected.size} of {catalog.length} selected</span>
+          </div>
           {groups.map(([platform, pts]) => (
             <div key={platform}>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-soft">{platform}</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">{platform}</p>
+                <button type="button" className="text-xs text-royal-600 hover:underline" onClick={() => toggleGroup(pts)}>{pts.every((p) => selected.has(p.id)) ? "Clear" : "Select all"}</button>
+              </div>
               <div className="space-y-1.5">
                 {pts.map((pt) => {
                   const on = selected.has(pt.id);

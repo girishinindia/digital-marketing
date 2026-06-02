@@ -53,7 +53,7 @@ export default function CompaniesPage() {
     catch (e) { toast.error((e as Error).message); }
   }
   async function remove(c: Company) {
-    if (!confirm(`Delete "${c.name}" and all its users/posts? This cannot be undone.`)) return;
+    if (!confirm(`Permanently delete "${c.name}"?\n\nThis also deletes its company admin(s), all users, posts, content library, calendars, entitlements and grants. This cannot be undone.`)) return;
     try { await api.del(`/api/companies/${c.id}`); toast.success("Company deleted"); load(); }
     catch (e) { toast.error((e as Error).message); }
   }

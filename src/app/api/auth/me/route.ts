@@ -1,10 +1,10 @@
-import { handle, ok, fail } from "@/lib/api";
-import { getCurrentUser } from "@/lib/auth";
+import { handle, ok } from "@/lib/api";
+import { requireUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+// requireUser re-validates the user against the DB, so a removed account 401s here too.
 export const GET = handle(async () => {
-  const user = await getCurrentUser();
-  if (!user) return fail("Not authenticated", 401);
+  const user = await requireUser();
   return ok({ user });
 });

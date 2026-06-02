@@ -3,9 +3,11 @@ import { ZodError } from "zod";
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status = 400) {
+  code?: string;
+  constructor(message: string, status = 400, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -25,7 +27,7 @@ export function handle<T extends unknown[]>(
     try {
       return await fn(...args);
     } catch (e) {
-      if (e instanceof ApiError) return fail(e.message, e.status);
+      if (e instanceof ApiError) return NextResponse.json({ error: e.message, ...(e.code ? { code: e.code } : {}) }, { status: e.status });
       if (e instanceof ZodError) {
         return NextResponse.json(
           { error: "Validation failed", issues: e.flatten().fieldErrors },

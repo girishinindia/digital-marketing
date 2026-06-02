@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -8,10 +8,17 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
+  const reason = params.get("reason");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Arrived here because the session was invalidated — clear any stale cookie.
+  useEffect(() => { if (reason) fetch("/api/auth/logout", { method: "POST" }).catch(() => {}); }, [reason]);
+  const notice = reason === "removed"
+    ? "This account or company no longer exists — it may have been deleted by an administrator. No record found."
+    : reason === "ended" ? "Your session has ended. Please sign in again." : "";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +42,8 @@ function LoginForm() {
           <h1 className="text-xl font-medium text-ink">{process.env.NEXT_PUBLIC_APP_NAME || "Marketing Suite"}</h1>
           <p className="mt-1 text-sm text-ink-muted">Sign in to your workspace</p>
         </div>
+
+        {notice && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{notice}</div>}
 
         <form onSubmit={onSubmit} className="card-pad space-y-4">
           {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}

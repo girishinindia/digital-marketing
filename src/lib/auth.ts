@@ -109,7 +109,11 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export async function requireUser(): Promise<AuthUser> {
   const user = await getCurrentUser();
   if (!user) throw new ApiError("Not authenticated", 401);
-  return user;
+  // The access token stays valid for ~15 min after the user/company is deleted —
+  // re-check the DB so a removed user is rejected immediately (also keeps role/company fresh).
+  const fresh = await loadUserById(user.id);
+  if (!fresh) throw new ApiError("Your account or company no longer exists.", 401, "ACCOUNT_REMOVED");
+  return fresh;
 }
 export async function requireRole(...roles: RoleSlug[]): Promise<AuthUser> {
   const user = await requireUser();

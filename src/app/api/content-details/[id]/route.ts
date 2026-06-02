@@ -12,7 +12,7 @@ async function assertScope(id: string, user: AuthUser) {
   const row = await queryOne<{ companyId: number }>(
     `SELECT company_id AS "companyId" FROM seo.content_details WHERE id = $1`, [id]);
   if (!row) throw new ApiError("Idea not found", 404);
-  if (user.roleSlug !== "super_admin" && row.companyId !== user.companyId) throw new ApiError("Forbidden", 403);
+  if (user.roleSlug !== "super_admin" && String(row.companyId) !== String(user.companyId)) throw new ApiError("Forbidden", 403);
   return row.companyId;
 }
 

@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export const GET = handle(async (_req: Request, ctx: Ctx) => {
   const actor = await requirePermission("grants.manage");
   const { id } = await ctx.params;
-  if (actor.roleSlug !== "super_admin" && Number(id) !== actor.companyId) throw new ApiError("Forbidden", 403);
+  if (actor.roleSlug !== "super_admin" && String(id) !== String(actor.companyId)) throw new ApiError("Forbidden", 403);
   const opts = await getEntitledOptions(Number(id));
   return ok(opts.postTypes);
 });

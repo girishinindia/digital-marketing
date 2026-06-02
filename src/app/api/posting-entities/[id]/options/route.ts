@@ -13,6 +13,6 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
   const ent = await queryOne<{ companyId: number }>(
     `SELECT company_id AS "companyId" FROM seo.users WHERE id = $1`, [id]);
   if (!ent) throw new ApiError("Entity not found", 404);
-  if (actor.roleSlug !== "super_admin" && ent.companyId !== actor.companyId) throw new ApiError("Forbidden", 403);
+  if (actor.roleSlug !== "super_admin" && String(ent.companyId) !== String(actor.companyId)) throw new ApiError("Forbidden", 403);
   return ok(await getGrantedOptions(Number(id)));
 });

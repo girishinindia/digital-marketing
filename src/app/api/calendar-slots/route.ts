@@ -12,7 +12,7 @@ export const POST = handle(async (req: Request) => {
 
   const cal = await queryOne<{ companyId: number }>(`SELECT company_id AS "companyId" FROM seo.content_calendars WHERE id = $1`, [input.calendarId]);
   if (!cal) throw new ApiError("Calendar not found", 404);
-  if (actor.roleSlug !== "super_admin" && cal.companyId !== actor.companyId) throw new ApiError("Forbidden", 403);
+  if (actor.roleSlug !== "super_admin" && String(cal.companyId) !== String(actor.companyId)) throw new ApiError("Forbidden", 403);
 
   const ent = await queryOne<{ companyId: number }>(`SELECT company_id AS "companyId" FROM seo.users WHERE id = $1`, [input.postingUserId]);
   if (!ent || ent.companyId !== cal.companyId) throw new ApiError("Entity is not in this company", 400);

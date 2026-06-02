@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 async function scope(id: string, actor: AuthUser): Promise<number> {
   const row = await queryOne<{ companyId: number }>(`SELECT company_id AS "companyId" FROM seo.calendar_slots WHERE id = $1`, [id]);
   if (!row) throw new ApiError("Slot not found", 404);
-  if (actor.roleSlug !== "super_admin" && row.companyId !== actor.companyId) throw new ApiError("Forbidden", 403);
+  if (actor.roleSlug !== "super_admin" && String(row.companyId) !== String(actor.companyId)) throw new ApiError("Forbidden", 403);
   return row.companyId;
 }
 

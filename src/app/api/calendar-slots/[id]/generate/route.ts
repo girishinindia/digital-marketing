@@ -14,7 +14,7 @@ export const POST = handle(async (req: Request, ctx: Ctx) => {
   const { id } = await ctx.params;
   const row = await queryOne<{ companyId: number }>(`SELECT company_id AS "companyId" FROM seo.calendar_slots WHERE id = $1`, [id]);
   if (!row) throw new ApiError("Slot not found", 404);
-  if (actor.roleSlug !== "super_admin" && row.companyId !== actor.companyId) throw new ApiError("Forbidden", 403);
+  if (actor.roleSlug !== "super_admin" && String(row.companyId) !== String(actor.companyId)) throw new ApiError("Forbidden", 403);
   const body = slotGenerateSchema.parse(await req.json().catch(() => ({})));
   const post = await generateSlot(Number(id), { provider: body.provider, prompt: body.prompt });
   await writeAudit({ actorUserId: actor.id, companyId: row.companyId, action: "slot.generate", entity: "calendar_slot", entityId: id, ip: getClientIp(req) });

@@ -47,19 +47,21 @@ export const GET = handle(async () => {
     return ok({ role: user.roleSlug, stats, recent });
   }
 
-  // role: user
+  // role: user — executor view (copy & post approved content)
   const stats = await queryOne(
     `SELECT
-      (SELECT count(*) FROM seo.posts WHERE user_id=$1)::int AS posts,
-      (SELECT count(*) FROM seo.posts WHERE user_id=$1 AND status='draft')::int AS drafts,
-      (SELECT count(*) FROM seo.posts WHERE user_id=$1 AND status IN ('scheduled','published'))::int AS "publishedOrScheduled",
+      (SELECT count(*) FROM seo.posts WHERE user_id=$1 AND status IN ('approved','scheduled','published'))::int AS posts,
+      (SELECT count(*) FROM seo.posts WHERE user_id=$1 AND status IN ('approved','scheduled'))::int AS "toPublish",
+      (SELECT count(*) FROM seo.posts WHERE user_id=$1 AND status='published')::int AS posted,
       (SELECT count(*) FROM seo.user_post_types WHERE user_id=$1 AND is_active)::int AS "grantedPostTypes"`,
     [user.id]
   );
   const recent = await query(
-    `SELECT p.id, p.title, p.body, p.status, pl.name AS "platformName", pt.name AS "postTypeName", p.created_at AS "createdAt"
+    `SELECT p.id, p.title, p.body, p.status, pl.name AS "platformName", pt.name AS "postTypeName",
+            p.scheduled_at AS "scheduledAt", p.created_at AS "createdAt"
      FROM seo.posts p JOIN seo.platforms pl ON pl.id=p.platform_id JOIN seo.post_types pt ON pt.id=p.post_type_id
-     WHERE p.user_id=$1 ORDER BY p.created_at DESC LIMIT 5`,
+     WHERE p.user_id=$1 AND p.status IN ('approved','scheduled','published')
+     ORDER BY COALESCE(p.scheduled_at, p.created_at) LIMIT 5`,
     [user.id]
   );
   return ok({ role: user.roleSlug, stats, recent });

@@ -47,6 +47,13 @@ export default function CalendarPage() {
   const [form, setForm] = useState({ postingUserId: 0, slotDate: "", platformId: "", postTypeId: "", contentTypeId: "", contentDetailId: "", plannedTime: "", notes: "" });
   const [entOptions, setEntOptions] = useState<Options | null>(null);
 
+  // Batch generate (one post per eligible entity, for a date)
+  const [batchModal, setBatchModal] = useState(false);
+  const [batchOpts, setBatchOpts] = useState<Options | null>(null);
+  const [batchForm, setBatchForm] = useState({ date: "", platformId: "", postTypeId: "", contentTypeIds: [] as number[], plannedTime: "" });
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ eligible: number; planned: number; created: number; skipped: number; failed: number } | null>(null);
+
   const isSuper = me?.roleSlug === "super_admin";
   const cidParam = isSuper && companyId ? `?companyId=${companyId}` : "";
 
@@ -113,6 +120,31 @@ export default function CalendarPage() {
     catch (e) { toast.error((e as Error).message); } finally { setGenBusy(false); }
   }
 
+  async function openBatch() {
+    setBatchResult(null);
+    setBatchForm({ date: weekStart, platformId: "", postTypeId: "", contentTypeIds: [], plannedTime: "" });
+    setBatchOpts(null); setBatchModal(true);
+    setBatchOpts(await api.get<Options>(`/api/ai/options${cidParam}`).catch(() => null));
+  }
+  const batchPTs = useMemo(() => (batchOpts && batchForm.platformId ? batchOpts.postTypes.filter((p) => p.platformId === Number(batchForm.platformId)) : []), [batchOpts, batchForm.platformId]);
+  const batchCTs = useMemo(() => (batchOpts && batchForm.postTypeId ? batchOpts.contentTypesByPostType[batchForm.postTypeId] || [] : []), [batchOpts, batchForm.postTypeId]);
+  function toggleBatchCT(id: number) {
+    setBatchForm((f) => ({ ...f, contentTypeIds: f.contentTypeIds.includes(id) ? f.contentTypeIds.filter((x) => x !== id) : [...f.contentTypeIds, id] }));
+  }
+  async function runBatch() {
+    if (!batchForm.postTypeId || !batchForm.date) { toast.error("Pick a post type and date."); return; }
+    setBatchBusy(true); setBatchResult(null);
+    try {
+      const r = await api.post<{ eligible: number; planned: number; created: number; skipped: number; failed: number }>("/api/batch-generate", {
+        date: batchForm.date, postTypeId: Number(batchForm.postTypeId), contentTypeIds: batchForm.contentTypeIds,
+        plannedTime: batchForm.plannedTime || null, ...(isSuper && companyId ? { companyId } : {}),
+      });
+      setBatchResult(r);
+      toast.success(`Created ${r.created} · skipped ${r.skipped}${r.failed ? ` · ${r.failed} failed` : ""}`);
+      loadWeek();
+    } catch (e) { toast.error((e as Error).message); } finally { setBatchBusy(false); }
+  }
+
   const slotsByCell = useMemo(() => {
     const m: Record<string, Slot[]> = {};
     (slots || []).forEach((s) => { (m[`${s.postingUserId}|${s.slotDate.slice(0, 10)}`] ??= []).push(s); });
@@ -126,6 +158,7 @@ export default function CalendarPage() {
       <PageHeader title="Weekly Calendar" subtitle="Plan the week for the company and each employee, then generate"
         action={<div className="flex items-center gap-2">
           {isSuper && <select className="select max-w-[170px]" value={companyId ?? ""} onChange={(e) => setCompanyId(Number(e.target.value))}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+          <button className="btn-secondary" onClick={openBatch} disabled={isSuper && !companyId}>⚡ Batch</button>
           <button className="btn-primary" onClick={generateWeek} disabled={genBusy || !calendarId}>{genBusy ? "Generating…" : "✨ Generate week"}</button>
         </div>} />
 
@@ -200,6 +233,43 @@ export default function CalendarPage() {
             </div>
             <Field label="Notes / prompt (optional)" hint="used as the AI prompt if no content idea is chosen"><textarea className="textarea min-h-[80px]" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
             {editing?.postId && <Link href="/posts" className="text-sm text-royal-600 underline">View the generated post in Posts →</Link>}
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={batchModal} onClose={() => setBatchModal(false)} wide title="⚡ Batch generate"
+        footer={<div className="flex w-full items-center justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setBatchModal(false)}>Close</button>
+          <button className="btn-primary" onClick={runBatch} disabled={batchBusy || !batchForm.postTypeId || !batchForm.date}>{batchBusy ? "Generating…" : "Generate for everyone"}</button>
+        </div>}>
+        {!batchOpts ? <Spinner label="Loading entitled options…" /> : batchOpts.platforms.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-muted">This company has no entitled platforms yet.</p>
+        ) : (
+          <div className="space-y-4">
+            <p className="rounded-lg bg-royal-50 px-3 py-2 text-xs text-royal-800">Creates <b>one post per eligible entity</b> (every employee + the company account granted this post type) for the chosen date. Already-generated slots are skipped — nothing extra is wasted.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Date"><input className="input" type="date" value={batchForm.date} onChange={(e) => setBatchForm({ ...batchForm, date: e.target.value })} /></Field>
+              <Field label="Time (optional)"><input className="input" type="time" value={batchForm.plannedTime} onChange={(e) => setBatchForm({ ...batchForm, plannedTime: e.target.value })} /></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Platform"><select className="select" value={batchForm.platformId} onChange={(e) => setBatchForm({ ...batchForm, platformId: e.target.value, postTypeId: "", contentTypeIds: [] })}><option value="">Select…</option>{batchOpts.platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+              <Field label="Post type"><select className="select" value={batchForm.postTypeId} onChange={(e) => setBatchForm({ ...batchForm, postTypeId: e.target.value, contentTypeIds: [] })} disabled={!batchForm.platformId}><option value="">Select…</option>{batchPTs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+            </div>
+            <Field label="Content types (optional)" hint="leave empty for one post per entity; pick several to produce one per type each">
+              {batchForm.postTypeId ? (batchCTs.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {batchCTs.map((c) => {
+                    const on = batchForm.contentTypeIds.includes(c.id);
+                    return <button key={c.id} type="button" onClick={() => toggleBatchCT(c.id)} className={`rounded-lg border px-3 py-1.5 text-xs ${on ? "border-royal-400 bg-royal-50 font-medium text-royal-700" : "border-surface-line text-ink-muted hover:border-royal-300"}`}>{on ? "✓ " : ""}{c.name}</button>;
+                  })}
+                </div>
+              ) : <p className="text-xs text-ink-soft">No content types mapped for this post type — a single post will be created per entity.</p>) : <p className="text-xs text-ink-soft">Pick a post type first.</p>}
+            </Field>
+            {batchResult && (
+              <div className="rounded-lg border border-surface-line bg-surface-soft px-3 py-2 text-sm">
+                <b className="text-ink">Run complete.</b> Eligible entities: {batchResult.eligible} · planned {batchResult.planned} · <span className="text-emerald-700">created {batchResult.created}</span> · <span className="text-amber-700">skipped {batchResult.skipped}</span>{batchResult.failed ? <> · <span className="text-rose-600">failed {batchResult.failed}</span></> : null}
+              </div>
+            )}
           </div>
         )}
       </Modal>

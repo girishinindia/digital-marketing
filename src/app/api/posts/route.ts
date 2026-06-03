@@ -6,7 +6,7 @@ import { writeAudit } from "@/lib/audit";
 export const runtime = "nodejs";
 
 export const GET = handle(async (req: Request) => {
-  const user = await requirePermission("posts.create");
+  const user = await requirePermission("posts.view");
   const sp = new URL(req.url).searchParams;
   const status = sp.get("status");
   const isUser = user.roleSlug === "user";

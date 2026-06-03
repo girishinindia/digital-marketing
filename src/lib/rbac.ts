@@ -6,15 +6,17 @@ export type Permission =
   | "catalog.manage"      // platforms, content types, post types, mappings
   | "users.manage"        // company-scoped users
   | "grants.manage"       // assign post/content types to users
-  | "posts.create"        // AI studio
+  | "posts.create"        // generate/edit/delete posts (admins only)
+  | "posts.approve"       // approve generated posts (admins only)
+  | "posts.view"          // see posts / my schedule (everyone, scope-enforced)
   | "content.manage"      // company content library (categories + ideas)
   | "calendar.manage"     // weekly content calendar
   | "audit.view";
 
 const ROLE_PERMISSIONS: Record<RoleSlug, Permission[]> = {
   super_admin: ["companies.manage", "admins.manage", "catalog.manage", "content.manage", "calendar.manage", "audit.view"],
-  company_admin: ["users.manage", "grants.manage", "posts.create", "content.manage", "calendar.manage", "audit.view"],
-  user: ["posts.create"],
+  company_admin: ["users.manage", "grants.manage", "posts.create", "posts.approve", "posts.view", "content.manage", "calendar.manage", "audit.view"],
+  user: ["posts.view"], // users no longer create — they copy & post from their schedule
 };
 
 export function can(role: RoleSlug, perm: Permission): boolean {
@@ -33,8 +35,9 @@ export const ROUTE_ACCESS: Record<string, RoleSlug[]> = {
   "/users": ["company_admin"],
   "/content-library": ["super_admin", "company_admin"],
   "/calendar": ["super_admin", "company_admin"],
-  "/studio": ["company_admin", "user"],
-  "/posts": ["company_admin", "user"],
+  "/studio": ["company_admin"],            // generation is admin-only now
+  "/posts": ["company_admin"],             // post management (approve, edit) is admin-only
+  "/schedule": ["super_admin", "company_admin", "user"], // read-only executor view
 };
 
 export function canAccessPath(role: RoleSlug, pathname: string): boolean {

@@ -38,11 +38,11 @@
 
 > The migrations seed a demo company (**GrowUpMore**), one super admin, one company admin, four users, and the full platform/content/post‑type catalog. The test data sheet (`01_Test_Data.md`) lists everything plus the extra records you will create while testing.
 
-> There are now **11 migrations** — `001`–`006` (core app), `007`–`008` (content library), `009`–`010` (company account + weekly calendar), `011` (company entitlements). Run all of them in order.
+> There are now **12 migrations** — `001`–`006` (core app), `007`–`008` (content library), `009`–`010` (company account + weekly calendar), `011` (company entitlements), `012` (calendar slot dedupe guard for batch generation). Run all of them in order.
 
-**Migrations are idempotent** — re‑running 001–011 is safe (no errors, no duplicates). If you ever hit an `already exists` error (e.g., `42P07 relation "posts" already exists`) from an older run, either just re‑run 001–011, or for a clean slate run `migrations/reset.sql` once (drops only the `seo` schema) and then run 001–011 again. See `migrations/README.md` → Troubleshooting.
+**Migrations are idempotent** — re‑running 001–012 is safe (no errors, no duplicates). If you ever hit an `already exists` error (e.g., `42P07 relation "posts" already exists`) from an older run, either just re‑run 001–012, or for a clean slate run `migrations/reset.sql` once (drops only the `seo` schema) and then run 001–012 again. See `migrations/README.md` → Troubleshooting.
 
-**Reset between full test passes (optional):** to start the data from scratch, run `migrations/reset.sql` then 001–011. This restores the seeded accounts in `01_Test_Data.md` and removes anything created during testing.
+**Reset between full test passes (optional):** to start the data from scratch, run `migrations/reset.sql` then 001–012. This restores the seeded accounts in `01_Test_Data.md` and removes anything created during testing.
 
 > **Restart after code changes:** route‑protection **middleware** registers only at server startup, so after pulling code changes restart `npm run dev` before testing access control (docs 02 & 09).
 
@@ -93,6 +93,7 @@ Full details and the extra accounts you create during testing are in **`01_Test_
 | 09 | `09_SuperAdmin_Access_And_Validations.md` | Super Admin 100% access + email/mobile/password validations |
 | 10 | `10_Calendar_Flow.md` | Company account, per‑entity platforms, weekly content calendar |
 | 11 | `11_Entitlements_Flow.md` | 3‑tier cascade: Super‑Admin company entitlements → Admin grants |
+| 12 | `12_Approval_Executor_Batch_Flow.md` | Role pivot (no user authoring), batch generate (no waste), approval, My Schedule executor |
 
 ---
 

@@ -168,6 +168,18 @@ export const slotGenerateSchema = z.object({
   prompt: z.string().max(4000).optional(),
 });
 
+// Batch: one post per eligible entity for a date, for a chosen post type
+// and (optionally) one or more content types. No waste — already-generated
+// slots are skipped.
+export const batchGenerateSchema = z.object({
+  companyId: z.coerce.number().int().positive().optional(), // super admin targets a company
+  postTypeId: z.coerce.number().int().positive(),
+  contentTypeIds: z.array(z.coerce.number().int().positive()).optional().default([]),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD"),
+  plannedTime: timeOpt,
+  provider: z.enum(["openai", "anthropic", "gemini"]).optional(),
+});
+
 export const postUpdateSchema = z.object({
   title: z.string().max(200).optional().nullable(),
   body: z.string().optional().nullable(),

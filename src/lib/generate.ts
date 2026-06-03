@@ -14,6 +14,7 @@ export interface GenerationInput {
   provider?: ProviderName;
   contentCategoryId?: number | null;
   contentDetailId?: number | null;
+  scheduledAt?: string | Date | null;  // planned publish time (from calendar slot)
   savePost: boolean;
 }
 
@@ -54,12 +55,12 @@ export async function runGeneration(opts: GenerationInput) {
     if (!opts.companyId) throw new ApiError("A company is required to save the post", 400);
     const rows = await query(
       `INSERT INTO seo.posts (company_id, user_id, platform_id, post_type_id, content_type_id,
-                              prompt, body, hashtags, status, ai_provider, ai_model, content_category_id, content_detail_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'generated',$9,$10,$11,$12)
+                              prompt, body, hashtags, status, ai_provider, ai_model, content_category_id, content_detail_id, scheduled_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'generated',$9,$10,$11,$12,$13)
        RETURNING id, title, body, hashtags, status, ai_provider AS "aiProvider", ai_model AS "aiModel", created_at AS "createdAt"`,
       [opts.companyId, opts.authorUserId, meta.platformId, opts.postTypeId, opts.contentTypeId ?? null,
        opts.prompt, result.body, result.hashtags, result.provider, result.model,
-       opts.contentCategoryId ?? null, opts.contentDetailId ?? null]
+       opts.contentCategoryId ?? null, opts.contentDetailId ?? null, opts.scheduledAt ?? null]
     );
     post = rows[0];
   }
@@ -78,11 +79,12 @@ export async function generateSlot(slotId: number, opts?: { provider?: ProviderN
   const slot = await queryOne<{
     company_id: number; posting_user_id: number; post_type_id: number; content_type_id: number | null;
     content_detail_id: number | null; notes: string | null; ideaPrompt: string | null;
-    ideaCategoryId: number | null; postTypeName: string; platformName: string;
+    ideaCategoryId: number | null; postTypeName: string; platformName: string; scheduledAt: string | null;
   }>(
     `SELECT s.company_id, s.posting_user_id, s.post_type_id, s.content_type_id, s.content_detail_id, s.notes,
             cd.default_prompt AS "ideaPrompt", cd.category_id AS "ideaCategoryId",
-            pt.name AS "postTypeName", pl.name AS "platformName"
+            pt.name AS "postTypeName", pl.name AS "platformName",
+            (s.slot_date + COALESCE(s.planned_time, '09:00'::time)) AS "scheduledAt"
      FROM seo.calendar_slots s
      LEFT JOIN seo.content_details cd ON cd.id = s.content_detail_id
      JOIN seo.post_types pt ON pt.id = s.post_type_id
@@ -105,6 +107,7 @@ export async function generateSlot(slotId: number, opts?: { provider?: ProviderN
     contentTypeId: slot.content_type_id != null ? Number(slot.content_type_id) : null,
     contentCategoryId: slot.ideaCategoryId != null ? Number(slot.ideaCategoryId) : null,
     contentDetailId: slot.content_detail_id != null ? Number(slot.content_detail_id) : null,
+    scheduledAt: slot.scheduledAt ?? null,
     prompt,
     provider: opts?.provider,
     savePost: true,

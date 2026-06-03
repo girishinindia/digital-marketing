@@ -77,22 +77,22 @@ export default function DashboardPage() {
         <>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <StatCard label="My posts" value={s.posts} />
-            <StatCard label="Drafts" value={s.drafts} />
-            <StatCard label="Scheduled / published" value={s.publishedOrScheduled} />
+            <StatCard label="To publish" value={s.toPublish} hint="approved, ready to post" />
+            <StatCard label="Posted" value={s.posted} />
             <StatCard label="Granted post types" value={s.grantedPostTypes} />
           </div>
-          <h2 className="mb-3 mt-8 text-lg font-medium">Recent posts</h2>
+          <h2 className="mb-3 mt-8 text-lg font-medium">Up next on your schedule</h2>
           <div className="card overflow-hidden">
             <table className="w-full">
               <thead className="bg-royal-50/60"><tr><th className="th">Platform</th><th className="th">Post type</th><th className="th">Status</th></tr></thead>
               <tbody className="divide-y divide-surface-line">
                 {data.recent.length ? data.recent.map((p) => (
                   <tr key={p.id}><td className="td">{p.platformName}</td><td className="td">{p.postTypeName}</td><td className="td"><StatusBadge status={p.status} /></td></tr>
-                )) : <tr><td className="td text-ink-muted" colSpan={3}>No posts yet — head to the AI Studio.</td></tr>}
+                )) : <tr><td className="td text-ink-muted" colSpan={3}>Nothing to publish yet — your admin will approve posts for you.</td></tr>}
               </tbody>
             </table>
           </div>
-          <Link href="/studio" className="btn-primary mt-4 inline-flex">Generate a post →</Link>
+          <Link href="/schedule" className="btn-primary mt-4 inline-flex">Open My Schedule →</Link>
         </>
       )}
     </div>

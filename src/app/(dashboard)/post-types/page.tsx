@@ -47,7 +47,7 @@ export default function PostTypesPage() {
       toast.success("Saved"); setOpen(false); load(platformId);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   }
-  const toggle = (p: PostType) => api.patch(`/api/post-types/${p.id}`, { isActive: !p.isActive }).then(() => platformId && load(platformId)).catch((e) => toast.error(e.message));
+  const toggle = (p: PostType) => api.patch(`/api/post-types/${p.id}`, { isActive: !p.isActive }).then(() => { if (platformId) load(platformId); }).catch((e) => toast.error(e.message));
   async function remove(p: PostType) { if (!confirm(`Delete ${p.name}?`)) return; try { await api.del(`/api/post-types/${p.id}`); toast.success("Deleted"); platformId && load(platformId); } catch (e) { toast.error((e as Error).message); } }
 
   async function openMap(p: PostType) {

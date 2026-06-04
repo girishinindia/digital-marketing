@@ -190,7 +190,8 @@ export default function CalendarPage() {
                           {cell.map((s) => (
                             <button key={s.id} onClick={() => openEdit(s)} className="rounded-lg border border-surface-line bg-royal-50/40 px-2 py-1 text-left text-xs hover:bg-royal-50">
                               <div className="font-medium text-royal-800">{s.platformName}</div>
-                              <div className="truncate text-ink-soft">{s.postTypeName}{s.ideaTitle ? ` · ${s.ideaTitle}` : ""}</div>
+                              <div className="truncate text-ink-soft">{s.postTypeName}{s.contentTypeName ? ` · ${s.contentTypeName}` : ""}</div>
+                              {s.ideaTitle && <div className="truncate text-royal-600">💡 {s.ideaTitle}</div>}
                               <span className={statusClass(s.status)}>{s.status}</span>
                             </button>
                           ))}
